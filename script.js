@@ -221,21 +221,175 @@
         };
     }
 
-    // --- Gemini API Integration ---
-    async function getGeminiAnalysis() {
-        elements.geminiOutput.style.display = 'block';
-        elements.geminiOutput.innerHTML = `<div class="flex justify-center items-center p-8"><div class="spinner"></div><p class="ml-4">Gemini is analyzing your scenario...</p></div>`;
-        elements.geminiButton.disabled = true;
-        elements.geminiButton.classList.add('opacity-50', 'cursor-not-allowed');
+    // --- Chat State Management ---
+    const chatState = {
+        isOpen: false,
+        compressedContext: null,
+        recentMessages: [],
+        messageCount: 0,
+        lastSummarizedAt: 0,
+        lastAnalyzedParams: null,
+        systemPrompt: "You are a world-class financial and investment advisor, known for your calculating and insightful analysis. Your tone is professional, sophisticated, and direct. You deliver maximum insight in minimum words.\n\nSTRICT FORMAT RULES:\n- Initial analysis: ONE paragraph (3-4 sentences max) + 3-5 bullet points\n- Each bullet point: Maximum 1-2 sentences, no sub-explanations\n- Follow-ups: 2-4 sentences unless question demands detail\n- NO academic language, NO lengthy explanations, NO filler\n- Use numbers and data, skip the theory",
+        SUMMARIZE_THRESHOLD: 8,
+        KEEP_RECENT_COUNT: 5
+    };
 
+    const chatElements = {
+        panel: document.getElementById('chat-panel'),
+        messages: document.getElementById('chat-messages'),
+        input: document.getElementById('chat-input'),
+        sendBtn: document.getElementById('chat-send-btn'),
+        toggleBtn: document.getElementById('chat-toggle-btn'),
+        minimizeBtn: document.getElementById('chat-minimize-btn'),
+        closeBtn: document.getElementById('chat-close-btn'),
+        paramsChangedBadge: document.getElementById('params-changed-badge'),
+        refreshAnalysisBtn: document.getElementById('refresh-analysis-btn')
+    };
+
+    // --- Chat UI Functions ---
+    function openChatPanel() {
+        chatState.isOpen = true;
+        chatElements.panel.classList.add('open');
+        chatElements.toggleBtn.style.display = 'none';
+        elements.geminiButton.style.display = 'none';
+        elements.geminiOutput.style.display = 'none';
+    }
+
+    function closeChatPanel() {
+        chatState.isOpen = false;
+        chatElements.panel.classList.remove('open');
+        chatElements.toggleBtn.style.display = 'flex';
+    }
+
+    function minimizeChatPanel() {
+        chatElements.panel.classList.remove('open');
+        chatElements.toggleBtn.style.display = 'flex';
+    }
+
+    function formatChatContent(content) {
+        // Split into sections by double newlines (paragraphs)
+        const sections = content.split('\n\n').filter(s => s.trim());
+
+        return sections.map(section => {
+            const lines = section.split('\n').filter(l => l.trim());
+
+            // Check if this section is a bullet list (starts with *, •, or -)
+            if (lines[0] && lines[0].match(/^[\*\•\-]\s/)) {
+                const items = lines.map(line => {
+                    // Remove bullet character and format
+                    const text = line.replace(/^[\*\•\-]\s+/, '');
+                    const formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    return `<li>${formatted}</li>`;
+                }).join('');
+                return `<ul class="chat-bullet-list">${items}</ul>`;
+            } else {
+                // Regular paragraph
+                const formatted = section
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\n/g, '<br>');
+                return `<p class="chat-paragraph">${formatted}</p>`;
+            }
+        }).join('');
+    }
+
+    function appendChatMessage(role, content) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${role}`;
+
+        const label = document.createElement('div');
+        label.className = 'chat-message-label';
+        label.textContent = role === 'user' ? 'You' : 'Financial Advisor';
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'chat-message-content';
+
+        // Format content with proper paragraph and bullet list styling
+        const formattedContent = formatChatContent(content);
+        contentDiv.innerHTML = formattedContent;
+
+        messageDiv.appendChild(label);
+        messageDiv.appendChild(contentDiv);
+        chatElements.messages.appendChild(messageDiv);
+
+        // Scroll to bottom
+        chatElements.messages.scrollTop = chatElements.messages.scrollHeight;
+    }
+
+    function showChatLoading() {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'chat-message model';
+        loadingDiv.innerHTML = `
+            <div class="chat-message-label">Financial Advisor</div>
+            <div class="chat-loading">
+                <div class="spinner"></div>
+                <span>Analyzing...</span>
+            </div>
+        `;
+        loadingDiv.id = 'chat-loading-indicator';
+        chatElements.messages.appendChild(loadingDiv);
+        chatElements.messages.scrollTop = chatElements.messages.scrollHeight;
+    }
+
+    function removeChatLoading() {
+        const loadingDiv = document.getElementById('chat-loading-indicator');
+        if (loadingDiv) loadingDiv.remove();
+    }
+
+    // --- Parameter Change Detection ---
+    function captureCurrentParams() {
+        return JSON.parse(JSON.stringify(getValues()));
+    }
+
+    function hasParamsChanged() {
+        if (!chatState.lastAnalyzedParams) return false;
+        const current = getValues();
+        return JSON.stringify(current) !== JSON.stringify(chatState.lastAnalyzedParams);
+    }
+
+    function updateParamsChangeIndicator() {
+        const changed = hasParamsChanged();
+        chatElements.paramsChangedBadge.style.display = changed ? 'inline-block' : 'none';
+        chatElements.refreshAnalysisBtn.style.display = changed ? 'flex' : 'none';
+    }
+
+    // --- Context Compression ---
+    async function summarizeConversation() {
+        const messagesToSummarize = chatState.recentMessages.slice(0, -chatState.KEEP_RECENT_COUNT);
+        if (messagesToSummarize.length === 0) return;
+
+        try {
+            const response = await fetch('/api/gemini-summarize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: messagesToSummarize })
+            });
+
+            if (!response.ok) {
+                console.error('Failed to summarize conversation');
+                return;
+            }
+
+            const { summary } = await response.json();
+
+            // Update state
+            chatState.compressedContext = summary;
+            chatState.recentMessages = chatState.recentMessages.slice(-chatState.KEEP_RECENT_COUNT);
+            chatState.lastSummarizedAt = chatState.messageCount;
+
+            console.log('Conversation summarized. Compressed context:', summary);
+        } catch (error) {
+            console.error('Error summarizing conversation:', error);
+        }
+    }
+
+    // --- Generate Financial Report Query ---
+    function generateFinancialReportQuery() {
         const values = getValues();
         const { simulationData, ratios, rentalAnalysis, monthlyCosts, leverageAnalysis } = calculateSimulation(values);
         const finalYearData = simulationData.length > 0 ? simulationData[simulationData.length - 1] : null;
 
-        const systemPrompt = "You are a world-class financial and investment advisor, known for your calculating and insightful analysis. Your tone is professional, sophisticated, and direct. When presented with a buy-vs-rent scenario, you provide a concise, qualitative analysis that goes beyond the raw numbers.";
-        
-        let userQuery = `Analyze the following buy-vs-rent financial scenario and provide a multi-paragraph advisory report. Focus on the key drivers, potential risks, and strategic opportunities.
-        
+        let query = `Analyze the following buy-vs-rent financial scenario and provide a multi-paragraph advisory report. Focus on the key drivers, potential risks, and strategic opportunities.
+
         --- Key Scenario Inputs ---
         Home Price: ${formatter.format(values.home_price)}
         Annual Household Income: ${formatter.format(values.household_income)}
@@ -245,7 +399,7 @@
         Home Appreciation Rate: ${values.home_appreciation_rate_percent}%/year
         Market Investment Return for Renter: ${values.market_investment_return_percent}%/year
         General Inflation: ${values.inflation_rate_percent}%/year
-        
+
         --- First-Year Leverage Analysis ---
         Leveraged Return on Equity (Nominal): ${leverageAnalysis.leveraged_roe.toFixed(2)}%
         Leveraged Return on Equity (Real, Inflation-Adjusted): ${leverageAnalysis.real_leveraged_roe.toFixed(2)}%
@@ -256,7 +410,7 @@
         Target Total DTI: ${values.dti_percent}%`;
 
         if(finalYearData) {
-            userQuery += `
+            query += `
 
 --- Final Projected Outcome at Year ${values.time_horizon} ---
         Projected Homeowner Net Worth: ${formatter.format(finalYearData.buyer_net_worth)} (Nominal) / ${formatter.format(finalYearData.buyer_net_worth_real)} (Real, Today's Dollars)
@@ -264,7 +418,7 @@
         }
 
         if (values.start_renting_year > 0) {
-            userQuery += `
+            query += `
 
 --- Special Condition: Rental Conversion ---
         The homeowner plans to convert the property to a rental starting in year ${values.start_renting_year}.
@@ -272,47 +426,196 @@
         The calculated average annual net cash flow from this rental is approximately ${formatter.format(rentalAnalysis.average_annual_rental_cash_flow)}.`;
         }
 
-        userQuery += "\n\nConclude with your top strategic recommendation based on these inputs. Use Google Search to incorporate context about the current financial environment where relevant, but base your core analysis on the provided numbers.";
+        query += "\n\n**RESPONSE FORMAT (STRICT):**\n1. ONE paragraph only: 3-4 sentences maximum. Cut to the chase.\n2. Then 4-6 bullet points (1-2 sentences each):\n   • Key financial driver (the ONE thing that matters most)\n   • Secondary factors (positive/negative)\n   • Primary risk\n   • Bottom-line recommendation\n\n**STYLE RULES:**\n- Use specific numbers from the data above\n- NO lengthy explanations or academic language\n- NO phrases like \"this scenario presents\" or \"it's important to note\"\n- Be direct: \"X beats Y by $Z\" not \"X appears to outperform Y\"\n- Maximum 150 words total\n\nUse Google Search only if absolutely necessary for current market context.";
 
-        // Send payload to server-side proxy which holds the API key
-        const payload = {
-            contents: [{ parts: [{ text: userQuery }] }],
-            tools: [{ "google_search": {} }],
-            systemInstruction: { parts: [{ text: systemPrompt }] },
-        };
+        return query;
+    }
 
-        let analysisText = '';
+    // --- Send Message to Gemini ---
+    async function sendChatMessage(userMessage) {
+        if (!userMessage.trim()) return;
+
+        // Add user message to UI and state
+        appendChatMessage('user', userMessage);
+        chatState.recentMessages.push({ role: 'user', content: userMessage });
+        chatState.messageCount++;
+
+        // Clear input
+        chatElements.input.value = '';
+        chatElements.input.style.height = 'auto';
+
+        // Check if we need to summarize
+        if (chatState.messageCount - chatState.lastSummarizedAt >= chatState.SUMMARIZE_THRESHOLD) {
+            showChatLoading();
+            removeChatLoading();
+
+            // Show brief notification
+            const notificationDiv = document.createElement('div');
+            notificationDiv.className = 'chat-message model';
+            notificationDiv.innerHTML = `
+                <div class="chat-message-label">System</div>
+                <div class="chat-message-content" style="background: #14b8a6; color: white; font-size: 0.85rem;">
+                    Optimizing conversation context...
+                </div>
+            `;
+            chatElements.messages.appendChild(notificationDiv);
+
+            await summarizeConversation();
+
+            // Remove notification after delay
+            setTimeout(() => notificationDiv.remove(), 2000);
+        }
+
+        // Show loading
+        showChatLoading();
+        chatElements.sendBtn.disabled = true;
+
         try {
-            const response = await fetch('/api/gemini', {
+            const response = await fetch('/api/gemini-chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ payload })
+                body: JSON.stringify({
+                    systemPrompt: chatState.systemPrompt,
+                    compressedContext: chatState.compressedContext,
+                    recentMessages: chatState.recentMessages
+                })
             });
+
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
-                console.error('Server-side Gemini proxy error', err);
-                throw new Error(err.error?.message || err.error || `Proxy responded ${response.status}`);
+                throw new Error(err.error?.message || err.error || `Server responded ${response.status}`);
             }
+
             const result = await response.json();
-            analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            const assistantMessage = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (!assistantMessage) {
+                throw new Error("No response received from Gemini.");
+            }
+
+            removeChatLoading();
+            appendChatMessage('model', assistantMessage);
+            chatState.recentMessages.push({ role: 'model', content: assistantMessage });
+            chatState.messageCount++;
+
+            // Update params indicator (in case user mentioned params in their question)
+            updateParamsChangeIndicator();
+
+        } catch (error) {
+            console.error("Chat error:", error);
+            removeChatLoading();
+            appendChatMessage('model', "I apologize, but I encountered an error processing your request. Please try again.");
+        } finally {
+            chatElements.sendBtn.disabled = false;
+        }
+    }
+
+    // --- Initial Analysis (Opens Chat) ---
+    async function getGeminiAnalysis() {
+        elements.geminiButton.disabled = true;
+        elements.geminiButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+        // Open chat panel
+        openChatPanel();
+
+        // Capture current parameters
+        chatState.lastAnalyzedParams = captureCurrentParams();
+
+        // Generate initial query
+        const initialQuery = generateFinancialReportQuery();
+
+        // Add to state
+        chatState.recentMessages.push({ role: 'user', content: initialQuery });
+        chatState.messageCount++;
+
+        // Show loading in chat
+        showChatLoading();
+
+        try {
+            const response = await fetch('/api/gemini-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    systemPrompt: chatState.systemPrompt,
+                    compressedContext: null,
+                    recentMessages: chatState.recentMessages
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error?.message || err.error || `Server responded ${response.status}`);
+            }
+
+            const result = await response.json();
+            const analysisText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
             if (!analysisText) {
                 throw new Error("No content received from Gemini.");
             }
+
+            removeChatLoading();
+            appendChatMessage('model', analysisText);
+            chatState.recentMessages.push({ role: 'model', content: analysisText });
+            chatState.messageCount++;
+
         } catch (error) {
             console.error("Gemini API Error:", error);
-            analysisText = "There was an error generating the analysis. Please check the server logs and ensure GOOGLE_API_KEY is set on the server.";
+            removeChatLoading();
+            appendChatMessage('model', "There was an error generating the analysis. Please check the server logs and ensure GOOGLE_API_KEY is set on the server.");
+        }
+    }
+
+    // --- Event Listeners for Chat ---
+    function setupChatEventListeners() {
+        // Send message
+        chatElements.sendBtn.addEventListener('click', () => {
+            const message = chatElements.input.value;
+            sendChatMessage(message);
+        });
+
+        // Send on Enter (without Shift)
+        chatElements.input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const message = chatElements.input.value;
+                sendChatMessage(message);
+            }
+        });
+
+        // Auto-resize textarea
+        chatElements.input.addEventListener('input', () => {
+            chatElements.input.style.height = 'auto';
+            chatElements.input.style.height = chatElements.input.scrollHeight + 'px';
+        });
+
+        // Toggle, minimize, close buttons
+        chatElements.toggleBtn.addEventListener('click', openChatPanel);
+        chatElements.minimizeBtn.addEventListener('click', minimizeChatPanel);
+        chatElements.closeBtn.addEventListener('click', closeChatPanel);
+
+        // Refresh analysis button
+        chatElements.refreshAnalysisBtn.addEventListener('click', () => {
+            const refreshQuery = generateFinancialReportQuery();
+            sendChatMessage("I've updated the parameters. Here's the new scenario:\n\n" + refreshQuery);
+            chatState.lastAnalyzedParams = captureCurrentParams();
+            updateParamsChangeIndicator();
+        });
+
+        // Watch for parameter changes
+        for (const key in inputGroups) {
+            const slider = document.getElementById(inputGroups[key].slider);
+            const numberInput = document.getElementById(inputGroups[key].number);
+
+            slider.addEventListener('change', updateParamsChangeIndicator);
+            numberInput.addEventListener('change', updateParamsChangeIndicator);
         }
 
-        const formattedHtml = analysisText
-            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-indigo-300">$1</strong>')
-            .replace(/\n/g, '<br>');
-
-        elements.geminiOutput.innerHTML = `
-            <h2 class="text-2xl font-bold text-white mb-4 text-center">Gemini's Advisory Report</h2>
-            <div class="text-gray-300 space-y-4">${formattedHtml}</div>
-        `;
-        elements.geminiButton.disabled = false;
-        elements.geminiButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        elements.home_price.addEventListener('change', updateParamsChangeIndicator);
+        elements.household_income.addEventListener('change', updateParamsChangeIndicator);
+        elements.initial_monthly_rent.addEventListener('change', updateParamsChangeIndicator);
+        elements.rental_income_monthly.addEventListener('change', updateParamsChangeIndicator);
+        elements.utilities_offset.addEventListener('change', updateParamsChangeIndicator);
     }
 
     // --- UI Update Functions ---
@@ -824,6 +1127,7 @@
     // --- App Initialization ---
     function init() {
         setupEventListeners();
+        setupChatEventListeners();
         updateDisplay();
         renderBuyingPowerChart();
     }
