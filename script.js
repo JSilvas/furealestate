@@ -18,6 +18,7 @@
         initial_monthly_rent: document.getElementById('initial_monthly_rent'),
         rental_income_monthly: document.getElementById('rental_income_monthly'),
         utilities_offset: document.getElementById('utilities_offset'),
+        reserve_cash: document.getElementById('reserve_cash'),
         monthlyExpenseOutput: document.getElementById('monthly-expense-output'),
         leverageAnalysisOutput: document.getElementById('leverage-analysis-output'),
         resultsOutput: document.getElementById('results-output'),
@@ -26,6 +27,13 @@
         rentalInputsContainer: document.getElementById('rental-inputs-container'),
         geminiButton: document.getElementById('gemini-analysis-button'),
         geminiOutput: document.getElementById('gemini-output'),
+        // Reserve breakdown card elements
+        reserve_breakdown_card: document.getElementById('reserve_breakdown_card'),
+        reserve_total_display: document.getElementById('reserve_total_display'),
+        reserve_minus_downpayment: document.getElementById('reserve_minus_downpayment'),
+        reserve_minus_renovations: document.getElementById('reserve_minus_renovations'),
+        reserve_available_display: document.getElementById('reserve_available_display'),
+        reserve_status_label: document.getElementById('reserve_status_label'),
         // calculated displays (may be undefined if element missing)
         down_payment_percent_calc: document.getElementById('down_payment_percent_calc'),
         interest_rate_percent_calc: document.getElementById('interest_rate_percent_calc'),
@@ -37,6 +45,7 @@
         annual_rent_increase_percent_calc: document.getElementById('annual_rent_increase_percent_calc'),
         tax_rate_percent_calc: document.getElementById('tax_rate_percent_calc'),
         pmi_rate_percent_calc: document.getElementById('pmi_rate_percent_calc'),
+        renovation_percent_calc: document.getElementById('renovation_percent_calc'),
     };
 
     const inputGroups = {
@@ -56,6 +65,7 @@
         pmi_rate_percent: { slider: 'pmi_rate_percent_slider', number: 'pmi_rate_percent_number' },
         start_renting_year: { slider: 'start_renting_year_slider', number: 'start_renting_year_number' },
         rental_income_increase_percent: { slider: 'rental_income_increase_percent_slider', number: 'rental_income_increase_percent_number' },
+        renovation_percent: { slider: 'renovation_percent_slider', number: 'renovation_percent_number' },
     };
 
     function getValues() {
@@ -64,7 +74,8 @@
             household_income: parseFloat(elements.household_income.value) || 0,
             initial_monthly_rent: parseFloat(elements.initial_monthly_rent.value) || 0,
             rental_income_monthly: parseFloat(elements.rental_income_monthly.value) || 0,
-            utilities_offset: parseFloat(elements.utilities_offset.value) || 0
+            utilities_offset: parseFloat(elements.utilities_offset.value) || 0,
+            reserve_cash: parseFloat(elements.reserve_cash.value) || 0
         };
         for (const key in inputGroups) {
             values[key] = parseFloat(document.getElementById(inputGroups[key].number).value) || 0;
@@ -79,37 +90,57 @@
         const time_horizon = values.time_horizon;
 
         const down_payment = values.home_price * (values.down_payment_percent / 100);
+        const renovation_costs = values.home_price * (values.renovation_percent / 100);
         const loan_amount = values.home_price - down_payment;
         const interest_rate = values.interest_rate_percent / 100;
         const monthly_interest_rate = interest_rate / 12;
         const num_payments = loan_years * 12;
-        
+
         let monthly_mortgage_payment = 0;
         if (monthly_interest_rate > 0 && loan_amount > 0) {
             monthly_mortgage_payment = loan_amount * (monthly_interest_rate * Math.pow(1 + monthly_interest_rate, num_payments)) / (Math.pow(1 + monthly_interest_rate, num_payments) - 1);
         } else if (loan_amount > 0) {
             monthly_mortgage_payment = loan_amount / num_payments;
         }
-        
+
         const closing_costs = values.home_price * (values.closing_costs_percent / 100);
         const initial_monthly_tax = (values.home_price * (values.property_tax_rate_percent / 100)) / 12;
         const initial_monthly_insurance = (values.home_price * (values.home_insurance_rate_percent / 100)) / 12;
         const initial_monthly_maintenance = (values.home_price * (values.maintenance_rate_percent / 100)) / 12;
-        
+
         let total_monthly_buyer_cost_year1 = monthly_mortgage_payment + initial_monthly_tax + initial_monthly_insurance + initial_monthly_maintenance + values.utilities_offset;
-        
+
         const gross_monthly_income = values.household_income / 12;
         const housing_dti = gross_monthly_income > 0 ? (total_monthly_buyer_cost_year1 / gross_monthly_income) * 100 : 0;
+
+        // Reserve cash calculations
+        let available_reserve = values.reserve_cash - down_payment - renovation_costs;
+        const target_monthly_expense = gross_monthly_income * (values.dti_percent / 100);
+
+        // Calculate effective DTI with reserve contribution (for Year 1)
+        let month1_reserve_contribution = 0;
+        if (available_reserve > 0 && total_monthly_buyer_cost_year1 > target_monthly_expense) {
+            month1_reserve_contribution = Math.min(
+                total_monthly_buyer_cost_year1 - target_monthly_expense,
+                available_reserve
+            );
+        }
+        const effective_monthly_cost_year1 = total_monthly_buyer_cost_year1 - month1_reserve_contribution;
+        const effective_dti = gross_monthly_income > 0 ? (effective_monthly_cost_year1 / gross_monthly_income) * 100 : 0;
 
         let current_home_value = values.home_price;
         let remaining_loan_balance = loan_amount;
         let current_monthly_rent = values.initial_monthly_rent;
-        let renter_investment_portfolio = down_payment - closing_costs;
-        let homeowner_investment_portfolio = 0; 
+        // Renter starts with reserve cash minus down payment and closing costs
+        let renter_investment_portfolio = values.reserve_cash - down_payment - closing_costs;
+        // Homeowner starts with investment portfolio at zero, but renovation costs reduce their liquid assets
+        let homeowner_investment_portfolio = 0;
         let current_monthly_rental_income = values.rental_income_monthly;
         let average_annual_rental_cash_flow = 0;
         let rental_years = 0;
         let year1_principal_paid = 0;
+        let cumulative_reserve_used = 0;
+        let reserve_depletion_month = null;
         
         const results = [];
         for (let year = 1; year <= time_horizon; year++) {
@@ -142,7 +173,32 @@
                 }
             }
             if (year === 1) year1_principal_paid = annual_principal_paid;
-            
+
+            // Track reserve contributions month-by-month
+            let annual_reserve_contribution = 0;
+            const monthly_tax = (current_home_value * property_tax_rate) / 12;
+            const monthly_insurance = (current_home_value * home_insurance_rate) / 12;
+            const monthly_maintenance = (current_home_value * maintenance_rate) / 12;
+
+            for (let month = 0; month < 12; month++) {
+                const total_monthly_cost = monthly_mortgage_payment + monthly_tax + monthly_insurance + monthly_maintenance + values.utilities_offset;
+
+                // Calculate reserve contribution needed to hit target DTI
+                if (available_reserve > 0 && total_monthly_cost > target_monthly_expense) {
+                    const needed_contribution = total_monthly_cost - target_monthly_expense;
+                    const actual_contribution = Math.min(needed_contribution, available_reserve);
+
+                    annual_reserve_contribution += actual_contribution;
+                    available_reserve -= actual_contribution;
+                    cumulative_reserve_used += actual_contribution;
+
+                    // Track when reserves are depleted
+                    if (available_reserve <= 0 && reserve_depletion_month === null) {
+                        reserve_depletion_month = (year - 1) * 12 + month + 1;
+                    }
+                }
+            }
+
             let annual_pmi_cost = 0;
             if (loan_amount > 0 && (down_payment/values.home_price) < 0.2 && remaining_loan_balance / current_home_value > 0.8) {
                 annual_pmi_cost = loan_amount * pmi_rate;
@@ -194,7 +250,10 @@
             results.push({
                 Year: year, buyer_net_worth: buyer_total_net_worth, renter_net_worth: renter_investment_portfolio,
                 home_value: current_home_value, remaining_loan: remaining_loan_balance,
-                buyer_net_worth_real, renter_net_worth_real
+                buyer_net_worth_real, renter_net_worth_real,
+                available_reserve: available_reserve,
+                annual_reserve_contribution: annual_reserve_contribution,
+                cumulative_reserve_used: cumulative_reserve_used
             });
         }
          if (rental_years > 0) {
@@ -209,11 +268,25 @@
 
         return {
             simulationData: results,
-            monthlyCosts: { 
+            monthlyCosts: {
                 mortgage: monthly_mortgage_payment, tax: initial_monthly_tax, insurance: initial_monthly_insurance, maintenance: initial_monthly_maintenance, utilities: values.utilities_offset,
-                total_buyer: total_monthly_buyer_cost_year1, rent: values.initial_monthly_rent 
+                total_buyer: total_monthly_buyer_cost_year1, rent: values.initial_monthly_rent,
+                effective_monthly_cost: effective_monthly_cost_year1,
+                month1_reserve_contribution: month1_reserve_contribution
             },
-            ratios: { housing_dti: housing_dti },
+            ratios: {
+                housing_dti: housing_dti,
+                effective_dti: effective_dti
+            },
+            reserveAnalysis: {
+                starting_reserve: values.reserve_cash,
+                down_payment: down_payment,
+                renovation_costs: renovation_costs,
+                initial_available_reserve: values.reserve_cash - down_payment - renovation_costs,
+                final_available_reserve: available_reserve,
+                cumulative_reserve_used: cumulative_reserve_used,
+                reserve_depletion_month: reserve_depletion_month
+            },
             rentalAnalysis: { average_annual_rental_cash_flow: average_annual_rental_cash_flow },
             leverageAnalysis: {
                 appreciation_gain_y1, year1_principal_paid, total_equity_gain_y1, down_payment, leveraged_roe, real_leveraged_roe
@@ -229,7 +302,7 @@
         messageCount: 0,
         lastSummarizedAt: 0,
         lastAnalyzedParams: null,
-        systemPrompt: "You are a world-class financial and investment advisor, known for your calculating and insightful analysis. Your tone is professional, sophisticated, and direct. You deliver maximum insight in minimum words.\n\nSTRICT FORMAT RULES:\n- Initial analysis: ONE paragraph (3-4 sentences max) + 3-5 bullet points\n- Each bullet point: Maximum 1-2 sentences, no sub-explanations\n- Follow-ups: 2-4 sentences unless question demands detail\n- NO academic language, NO lengthy explanations, NO filler\n- Use numbers and data, skip the theory",
+        systemPrompt: "You are a world-class financial and investment advisor, known for your calculating and insightful analysis. Your tone is professional, sophisticated, and direct. You deliver maximum insight in minimum words.\n\nCONTEXT: This analysis includes reserve cash management. The user has total reserve cash that covers down payment, optional renovations, and can be used monthly to reduce their effective DTI ratio. Reserves are automatically applied to achieve the target DTI until depleted.\n\nSTRICT FORMAT RULES:\n- Initial analysis: ONE paragraph (3-4 sentences max) + 3-5 bullet points\n- Each bullet point: Maximum 1-2 sentences, no sub-explanations\n- Follow-ups: 2-4 sentences unless question demands detail\n- NO academic language, NO lengthy explanations, NO filler\n- Use numbers and data, skip the theory\n- If reserve cash is being used, comment on the sustainability and DTI impact when reserves deplete",
         SUMMARIZE_THRESHOLD: 8,
         KEEP_RECENT_COUNT: 5
     };
@@ -616,6 +689,7 @@
         elements.initial_monthly_rent.addEventListener('change', updateParamsChangeIndicator);
         elements.rental_income_monthly.addEventListener('change', updateParamsChangeIndicator);
         elements.utilities_offset.addEventListener('change', updateParamsChangeIndicator);
+        elements.reserve_cash.addEventListener('change', updateParamsChangeIndicator);
     }
 
     // --- UI Update Functions ---
@@ -641,11 +715,11 @@
             elements.rentalInputsContainer.querySelectorAll('input').forEach(i => i.disabled = true);
         }
 
-        const { simulationData, monthlyCosts, ratios, rentalAnalysis, leverageAnalysis } = calculateSimulation(values);
+        const { simulationData, monthlyCosts, ratios, rentalAnalysis, leverageAnalysis, reserveAnalysis } = calculateSimulation(values);
         // Update inline calculated displays next to sliders
         updateInlineCalcs(values, monthlyCosts);
 
-        updateMonthlyExpenseUI(values, monthlyCosts, ratios, rentalAnalysis);
+        updateMonthlyExpenseUI(values, monthlyCosts, ratios, rentalAnalysis, reserveAnalysis);
         updateLeverageAnalysisUI(leverageAnalysis);
         updateResultsTableUI(simulationData);
         updateWealthChart(simulationData);
@@ -656,7 +730,38 @@
         el.textContent = text;
     }
 
+    function updateReserveBreakdownCard(values) {
+        if (!elements.reserve_breakdown_card) return;
+
+        const downPaymentAmount = values.home_price * (values.down_payment_percent / 100);
+        const renovationCosts = values.home_price * (values.renovation_percent / 100);
+        const availableReserve = values.reserve_cash - downPaymentAmount - renovationCosts;
+
+        // Update display values
+        safeSetText(elements.reserve_total_display, formatter.format(values.reserve_cash));
+        safeSetText(elements.reserve_minus_downpayment, '-' + formatter.format(downPaymentAmount));
+        safeSetText(elements.reserve_minus_renovations, '-' + formatter.format(renovationCosts));
+        safeSetText(elements.reserve_available_display, formatter.format(availableReserve));
+
+        // Determine status and apply color coding
+        elements.reserve_breakdown_card.className = elements.reserve_breakdown_card.className.replace(/status-\w+/g, '');
+
+        if (availableReserve < 0) {
+            elements.reserve_breakdown_card.classList.add('status-red');
+            safeSetText(elements.reserve_status_label, 'INSUFFICIENT RESERVES:');
+        } else if (availableReserve < downPaymentAmount * 0.1) { // Less than 10% of down payment
+            elements.reserve_breakdown_card.classList.add('status-yellow');
+            safeSetText(elements.reserve_status_label, 'Available for DTI Support:');
+        } else {
+            elements.reserve_breakdown_card.classList.add('status-green');
+            safeSetText(elements.reserve_status_label, 'Available for DTI Support:');
+        }
+    }
+
     function updateInlineCalcs(values, monthlyCosts) {
+        // Update reserve breakdown card
+        updateReserveBreakdownCard(values);
+
         // Down payment absolute amount
         const downPaymentAmount = values.home_price * (values.down_payment_percent / 100);
         safeSetText(elements.down_payment_percent_calc, formatter.format(downPaymentAmount));
@@ -701,24 +806,58 @@
         safeSetText(elements.tax_rate_percent_calc, `${values.tax_rate_percent}%`);
         safeSetText(elements.pmi_rate_percent_calc, `${values.pmi_rate_percent}%`);
 
+        // Renovation costs
+        const renovationCosts = values.home_price * (values.renovation_percent / 100);
+        safeSetText(elements.renovation_percent_calc, formatter.format(renovationCosts));
+
     }
 
-    function updateMonthlyExpenseUI(values, monthlyCosts, ratios, rentalAnalysis) {
+    function updateMonthlyExpenseUI(values, monthlyCosts, ratios, rentalAnalysis, reserveAnalysis) {
+        // Use effective_dti which accounts for reserve contributions
+        const displayDTI = ratios.effective_dti;
         let dtiColor = 'text-green-400';
-        if (ratios.housing_dti > 28 && ratios.housing_dti <= 36) {
+        if (displayDTI > 28 && displayDTI <= 36) {
             dtiColor = 'text-yellow-400';
-        } else if (ratios.housing_dti > 36) {
+        } else if (displayDTI > 36) {
             dtiColor = 'text-red-400';
         }
-        
+
+        // Show reserve contribution info if applicable
+        const reserveInfo = monthlyCosts.month1_reserve_contribution > 0
+            ? `<p class="text-xs text-teal-400 mt-1">Reserve Support: ${formatter.format(monthlyCosts.month1_reserve_contribution)}/mo</p>`
+            : '';
+
         const dtiHtml = `
              <div class="bg-gray-700 p-4 rounded-lg h-full flex flex-col justify-center text-center">
                 <h3 class="font-bold text-lg text-purple-400">Key Financial Ratios</h3>
-                <p class="text-xs text-gray-400 mt-2">Housing DTI (Front-End)</p>
-                <p class="text-3xl font-bold ${dtiColor}">${ratios.housing_dti.toFixed(1)}%</p>
-                 <p class="text-xs text-gray-500 mt-2"> (PITI & Utils / Gross Monthly Income)</p>
+                <p class="text-xs text-gray-400 mt-2">Effective Housing DTI</p>
+                <p class="text-3xl font-bold ${dtiColor}">${displayDTI.toFixed(1)}%</p>
+                 <p class="text-xs text-gray-500 mt-2">(Housing Costs / Gross Monthly Income)</p>
+                 ${reserveInfo}
             </div>
         `;
+
+        // Reserve Management Section
+        let reserveManagementHtml = '';
+        if (reserveAnalysis && reserveAnalysis.cumulative_reserve_used > 0) {
+            const monthsRemaining = reserveAnalysis.reserve_depletion_month
+                ? `Reserves depleted at month ${reserveAnalysis.reserve_depletion_month}`
+                : `${Math.floor(reserveAnalysis.final_available_reserve / (reserveAnalysis.cumulative_reserve_used / 12))} months remaining`;
+
+            const statusColor = reserveAnalysis.final_available_reserve > 0 ? 'text-green-400' : 'text-red-400';
+
+            reserveManagementHtml = `
+                <div class="bg-gray-700 p-4 rounded-lg h-full flex flex-col justify-center text-center mt-6 lg:mt-0">
+                    <h3 class="font-bold text-lg text-yellow-400">Reserve Cash Status</h3>
+                    <p class="text-xs text-gray-400 mt-2">Total Used: ${formatter.format(reserveAnalysis.cumulative_reserve_used)}</p>
+                    <p class="text-2xl font-bold ${statusColor}">
+                        ${formatter.format(reserveAnalysis.final_available_reserve)}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">Remaining Balance</p>
+                    <p class="text-xs text-gray-400 mt-2">${monthsRemaining}</p>
+                </div>
+            `;
+        }
 
         const cashFlowHtml = values.start_renting_year > 0 ? `
             <div class="bg-gray-700 p-4 rounded-lg h-full flex flex-col justify-center text-center mt-6 lg:mt-0">
@@ -746,6 +885,7 @@
                 </div>
                 <div class="flex flex-col justify-start">
                     ${dtiHtml}
+                    ${reserveManagementHtml}
                     ${cashFlowHtml}
                 </div>
             </div>`;
@@ -1107,6 +1247,7 @@
         elements.initial_monthly_rent.addEventListener('input', updateDisplay);
         elements.rental_income_monthly.addEventListener('input', updateDisplay);
         elements.utilities_offset.addEventListener('input', updateDisplay);
+        elements.reserve_cash.addEventListener('input', updateDisplay);
         elements.geminiButton.addEventListener('click', getGeminiAnalysis);
 
         for (const key in inputGroups) {

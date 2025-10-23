@@ -370,6 +370,49 @@ input[type=number] {
     border-width: 3px;
 }
 
+/* Reserve Cash Styling */
+.reserve-cash-section {
+    background: rgba(234, 179, 8, 0.05); /* yellow tint */
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+#reserve_breakdown_card {
+    transition: all 0.3s ease;
+}
+
+#reserve_breakdown_card.status-green {
+    border-color: #10b981; /* green-500 */
+    background: rgba(16, 185, 129, 0.05);
+}
+
+#reserve_breakdown_card.status-green #reserve_available_display {
+    color: #10b981; /* green-500 */
+}
+
+#reserve_breakdown_card.status-yellow {
+    border-color: #f59e0b; /* yellow-500 */
+    background: rgba(245, 158, 11, 0.05);
+}
+
+#reserve_breakdown_card.status-yellow #reserve_available_display {
+    color: #f59e0b; /* yellow-500 */
+}
+
+#reserve_breakdown_card.status-red {
+    border-color: #ef4444; /* red-500 */
+    background: rgba(239, 68, 68, 0.05);
+}
+
+#reserve_breakdown_card.status-red #reserve_available_display {
+    color: #ef4444; /* red-500 */
+}
+
+#reserve_breakdown_card.status-red #reserve_status_label {
+    color: #ef4444; /* red-500 */
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
     .chat-panel {
