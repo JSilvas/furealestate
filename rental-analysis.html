@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rental Property Investment Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+            }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                border-radius: 0;
+                box-shadow: none;
+                max-width: 100%;
+            }
+        }
+
+        .nav-bar {
+            background: #444;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .nav-links a:hover {
+            background: #555;
+        }
+
+        .nav-links a.active {
+            background: #667eea;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .guidance-content {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .guidance-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .guidance-text {
+            font-size: 13px;
+            line-height: 1.5;
+            opacity: 0.95;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .savvy-score {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            padding: 20px 30px;
+            border-radius: 12px;
+            text-align: center;
+            min-width: 200px;
+        }
+
+        .savvy-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .savvy-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .savvy-score.good .savvy-value {
+            color: #6ee7b7;
+        }
+
+        .savvy-score.neutral .savvy-value {
+            color: #fbbf24;
+        }
+
+        .savvy-score.bad .savvy-value {
+            color: #f87171;
+        }
+
+        .savvy-subtext {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+                padding-left: 70px;
+            }
+
+            .savvy-score {
+                width: 100%;
+            }
+        }
+
+        .content {
+            display: flex;
+            gap: 0;
+            position: relative;
+        }
+
+        .inputs.collapsed ~ .results {
+            flex: 1;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            left: 350px;
+            top: 0;
+            bottom: 0;
+            width: 40px;
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            z-index: 100;
+            transition: left 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+            letter-spacing: 1px;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            pointer-events: all;
+        }
+
+        .sidebar-toggle:hover {
+            background: #5568d3;
+        }
+
+        .inputs.collapsed ~ .sidebar-toggle {
+            left: 0;
+        }
+
+        .inputs:not(.collapsed) ~ .sidebar-toggle {
+            left: 350px;
+        }
+
+        .inputs {
+            background: #fafafa;
+            padding: 30px;
+            border-right: 1px solid #e0e0e0;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+            width: 350px;
+            transition: margin-left 0.3s ease;
+            position: relative;
+            z-index: 50;
+        }
+
+        .inputs.collapsed {
+            margin-left: -350px;
+        }
+
+        .results {
+            padding: 30px;
+            overflow-y: auto;
+            max-height: calc(100vh - 180px);
+            transition: padding-left 0.3s ease, margin-left 0.3s ease;
+            margin-left: 0;
+            flex: 1;
+        }
+
+        .inputs.collapsed ~ .results {
+            padding-left: 70px;
+            margin-left: 0;
+        }
+
+        .inputs:not(.collapsed) ~ .results {
+            padding-left: 30px;
+            margin-left: 0;
+        }
+
+        @media (min-width: 769px) {
+            .inputs {
+                margin-left: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+
+            .inputs {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                margin-left: -350px;
+                max-height: 100vh;
+                box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+                z-index: 1001;
+            }
+
+            .inputs:not(.collapsed) {
+                margin-left: 0;
+            }
+
+            .sidebar-toggle {
+                position: fixed;
+                left: 0;
+                z-index: 1000;
+            }
+
+            .inputs:not(.collapsed) ~ .sidebar-toggle {
+                left: 350px;
+            }
+
+            .inputs.collapsed ~ .results {
+                padding-left: 70px;
+            }
+
+            .inputs:not(.collapsed) ~ .results {
+                padding-left: 30px;
+            }
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .key-input {
+            border: 2px solid #6ee7b7 !important;
+            background-color: #f0fdf4;
+        }
+
+        .key-input:focus {
+            border-color: #10b981 !important;
+        }
+
+        .results {
+            padding: 30px;
+            overflow-y: auto;
+            max-height: calc(100vh - 180px);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .metric-card.negative {
+            border-left-color: #e74c3c;
+        }
+
+        .metric-card.positive {
+            border-left-color: #27ae60;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .metric-subtext {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 30px 0 20px 0;
+            color: #333;
+        }
+
+        .table-container {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        td {
+            padding: 12px;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .currency {
+            font-weight: 500;
+        }
+
+        .negative-value {
+            color: #e74c3c;
+        }
+
+        .positive-value {
+            color: #27ae60;
+        }
+
+        .scenario-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .scenario-tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .scenario-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .scenario-content {
+            display: none;
+        }
+
+        .scenario-content.active {
+            display: block;
+        }
+
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+
+        .sensitivity-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .sensitivity-card {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .sensitivity-card h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .sensitivity-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .sensitivity-row:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="nav-bar">
+            <div class="nav-links">
+                <a href="index.html">Buy vs. Rent Calculator</a>
+                <a href="rental-analysis.html" class="active">Short-Term Rental Analysis</a>
+            </div>
+        </nav>
+
+        <div class="header" id="header">
+            <div class="header-content">
+                <h1>Short-Term Rental Investment Analysis</h1>
+                <p>Comprehensive financial modeling for rental property investment decisions</p>
+            </div>
+            <div class="guidance-content" id="guidanceContent">
+                <div class="guidance-title" id="guidanceTitle">Investment Context</div>
+                <div class="guidance-text" id="guidanceText">Loading guidance...</div>
+            </div>
+            <div class="savvy-score" id="savvyScore">
+                <div class="savvy-label">Investment Savvy Score</div>
+                <div class="savvy-value" id="savvyValue">—</div>
+                <div class="savvy-subtext" id="savvySubtext">Calculating...</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="inputs" id="inputs">
+                <div class="input-section">
+                    <h3>Property Details</h3>
+                    <div class="input-group">
+                        <label>Purchase Price</label>
+                        <input type="number" id="purchasePrice" value="900000" step="1000" class="key-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Down Payment %</label>
+                        <input type="number" id="downPayment" value="40" step="1" min="0" max="100" class="key-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Interest Rate %</label>
+                        <input type="number" id="interestRate" value="5.81" step="0.01">
+                    </div>
+                    <div class="input-group">
+                        <label>Loan Term (years)</label>
+                        <input type="number" id="loanTerm" value="30" step="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Annual Property Tax</label>
+                        <input type="number" id="propertyTax" value="11300" step="100">
+                    </div>
+                    <div class="input-group">
+                        <label>Annual Insurance</label>
+                        <input type="number" id="insurance" value="2400" step="100">
+                    </div>
+                    <div class="input-group">
+                        <label>Annual HOA Fees</label>
+                        <input type="number" id="hoaFees" value="0" step="100">
+                    </div>
+                </div>
+
+                <div class="input-section">
+                    <h3>Income & Operations</h3>
+                    <div class="input-group">
+                        <label>Monthly Gross Rental Income</label>
+                        <input type="number" id="monthlyRent" value="10000" step="100" class="key-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Other Rental Income (monthly)</label>
+                        <input type="number" id="otherIncome" value="0" step="50" class="key-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Vacancy Rate %</label>
+                        <input type="number" id="vacancyRate" value="30" step="1" min="0" max="100" class="key-input">
+                    </div>
+                    <div class="input-group">
+                        <label>Property Management Fee %</label>
+                        <input type="number" id="managementFee" value="20" step="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Monthly Utilities</label>
+                        <input type="number" id="utilities" value="350" step="50">
+                    </div>
+                    <div class="input-group">
+                        <label>Annual Maintenance Reserve %</label>
+                        <input type="number" id="maintenanceReserve" value="1" step="0.1">
+                    </div>
+                </div>
+
+                <div class="input-section">
+                    <h3>Renovations & Appreciation</h3>
+                    <div class="input-group">
+                        <label>Initial Renovation Budget</label>
+                        <input type="number" id="initialRenovation" value="10000" step="1000">
+                    </div>
+                    <div class="input-group">
+                        <label>Annual Property Appreciation %</label>
+                        <input type="number" id="appreciation" value="3.5" step="0.1">
+                    </div>
+                    <div class="input-group">
+                        <label>Annual Rent Growth %</label>
+                        <input type="number" id="rentGrowth" value="3" step="0.1">
+                    </div>
+                </div>
+
+                <div class="input-section">
+                    <h3>Exit Costs</h3>
+                    <div class="input-group">
+                        <label>Selling Costs % (if sold)</label>
+                        <input type="number" id="sellingCosts" value="6" step="0.5">
+                    </div>
+                </div>
+            </div>
+
+            <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">ADJUST YOUR SCENARIO</button>
+
+            <div class="results">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Total Cash Invested</div>
+                        <div class="metric-value" id="totalInvested">$0</div>
+                        <div class="metric-subtext">Down payment + closing + reno</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Baseline Monthly Costs</div>
+                        <div class="metric-value" id="baselineCosts">$0</div>
+                        <div class="metric-subtext">Without property management</div>
+                    </div>
+                    <div class="metric-card" id="cashFlowCard">
+                        <div class="metric-label">Monthly Cash Flow</div>
+                        <div class="metric-value" id="monthlyCashFlow">$0</div>
+                        <div class="metric-subtext">After all expenses</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Break-even Occupancy</div>
+                        <div class="metric-value" id="breakEven">0%</div>
+                        <div class="metric-subtext">Min occupancy for $0 cash flow</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Year 1 Cash-on-Cash</div>
+                        <div class="metric-value" id="cocReturn">0%</div>
+                        <div class="metric-subtext">Annual cash flow / invested</div>
+                    </div>
+                </div>
+
+                <div class="section-title">Monthly Cash Flow Breakdown</div>
+                <div class="table-container">
+                    <table id="monthlyBreakdown">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th style="text-align: right;">Monthly</th>
+                                <th style="text-align: right;">Annual</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthlyBreakdownBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="section-title">Multi-Year Projections</div>
+                <div class="scenario-tabs">
+                    <button class="scenario-tab active" onclick="switchScenario('5yr')">5-Year Hold</button>
+                    <button class="scenario-tab" onclick="switchScenario('10yr')">10-Year Hold</button>
+                    <button class="scenario-tab" onclick="switchScenario('30yr')">30-Year Hold</button>
+                </div>
+
+                <div id="5yr" class="scenario-content active">
+                    <div class="table-container">
+                        <table id="projection5yr"></table>
+                    </div>
+                </div>
+
+                <div id="10yr" class="scenario-content">
+                    <div class="table-container">
+                        <table id="projection10yr"></table>
+                    </div>
+                </div>
+
+                <div id="30yr" class="scenario-content">
+                    <div class="table-container">
+                        <table id="projection30yr"></table>
+                    </div>
+                </div>
+
+                <div class="section-title">Sensitivity Analysis</div>
+                <div class="sensitivity-grid">
+                    <div class="sensitivity-card">
+                        <h4>Vacancy Rate Impact</h4>
+                        <div id="vacancySensitivity"></div>
+                    </div>
+                    <div class="sensitivity-card">
+                        <h4>Maintenance Cost Impact</h4>
+                        <div id="maintenanceSensitivity"></div>
+                    </div>
+                    <div class="sensitivity-card">
+                        <h4>Rent Income Impact</h4>
+                        <div id="rentSensitivity"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set initial state based on screen size
+        function initSidebar() {
+            const inputs = document.getElementById('inputs');
+            if (window.innerWidth <= 768) {
+                inputs.classList.add('collapsed');
+            }
+        }
+
+        function toggleSidebar() {
+            const inputs = document.getElementById('inputs');
+            const results = document.querySelector('.results');
+            inputs.classList.toggle('collapsed');
+
+            // Force recalculation of padding
+            if (inputs.classList.contains('collapsed')) {
+                results.style.paddingLeft = '70px';
+            } else {
+                results.style.paddingLeft = '30px';
+            }
+        }
+
+        // Initialize on load
+        initSidebar();
+
+        function calculate() {
+            // Get inputs
+            const purchasePrice = parseFloat(document.getElementById('purchasePrice').value);
+            const downPaymentPct = parseFloat(document.getElementById('downPayment').value) / 100;
+            const interestRate = parseFloat(document.getElementById('interestRate').value) / 100;
+            const loanTerm = parseFloat(document.getElementById('loanTerm').value);
+            const propertyTax = parseFloat(document.getElementById('propertyTax').value);
+            const insurance = parseFloat(document.getElementById('insurance').value);
+            const hoaFees = parseFloat(document.getElementById('hoaFees').value);
+            const monthlyRent = parseFloat(document.getElementById('monthlyRent').value);
+            const otherIncome = parseFloat(document.getElementById('otherIncome').value);
+            const vacancyRate = parseFloat(document.getElementById('vacancyRate').value) / 100;
+            const managementFee = parseFloat(document.getElementById('managementFee').value) / 100;
+            const utilities = parseFloat(document.getElementById('utilities').value);
+            const maintenanceReserve = parseFloat(document.getElementById('maintenanceReserve').value) / 100;
+            const initialRenovation = parseFloat(document.getElementById('initialRenovation').value);
+            const appreciation = parseFloat(document.getElementById('appreciation').value) / 100;
+            const rentGrowth = parseFloat(document.getElementById('rentGrowth').value) / 100;
+            const sellingCosts = parseFloat(document.getElementById('sellingCosts').value) / 100;
+
+            // Calculate loan details
+            const downPayment = purchasePrice * downPaymentPct;
+            const loanAmount = purchasePrice - downPayment;
+            const monthlyRate = interestRate / 12;
+            const numPayments = loanTerm * 12;
+            const monthlyPI = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) /
+                              (Math.pow(1 + monthlyRate, numPayments) - 1);
+
+            // Calculate closing costs (estimate 3% of purchase price)
+            const closingCosts = purchasePrice * 0.03;
+            const totalInvested = downPayment + closingCosts + initialRenovation;
+
+            // Monthly expenses
+            const effectiveRent = monthlyRent * (1 - vacancyRate);
+            const propertyManagement = effectiveRent * managementFee;
+            const totalMonthlyIncome = effectiveRent + otherIncome;
+            const monthlyPropertyTax = propertyTax / 12;
+            const monthlyInsurance = insurance / 12;
+            const monthlyHOA = hoaFees / 12;
+            const monthlyMaintenance = (purchasePrice * maintenanceReserve) / 12;
+
+            // Baseline costs (without property management)
+            const baselineMonthly = monthlyPI + monthlyPropertyTax + monthlyInsurance +
+                                   monthlyHOA + utilities + monthlyMaintenance;
+
+            const totalMonthlyExpenses = monthlyPI + propertyManagement + monthlyPropertyTax +
+                                        monthlyInsurance + monthlyHOA + utilities + monthlyMaintenance;
+            const monthlyCashFlow = totalMonthlyIncome - totalMonthlyExpenses;
+            const annualCashFlow = monthlyCashFlow * 12;
+
+            // Year 1 metrics
+            const cocReturn = (annualCashFlow / totalInvested) * 100;
+
+            // Break-even calculation
+            const fixedExpenses = monthlyPI + monthlyPropertyTax + monthlyInsurance + monthlyHOA + utilities + monthlyMaintenance;
+            const breakEvenRent = fixedExpenses / (1 - managementFee);
+            const breakEvenOccupancy = (breakEvenRent / monthlyRent) * 100;
+
+            // Update main metrics
+            document.getElementById('monthlyCashFlow').textContent = formatCurrency(monthlyCashFlow);
+            document.getElementById('baselineCosts').textContent = formatCurrency(baselineMonthly);
+            document.getElementById('totalInvested').textContent = formatCurrency(totalInvested);
+            document.getElementById('cocReturn').textContent = cocReturn.toFixed(2) + '%';
+            document.getElementById('breakEven').textContent = breakEvenOccupancy.toFixed(1) + '%';
+
+            const cashFlowCard = document.getElementById('cashFlowCard');
+            cashFlowCard.className = 'metric-card ' + (monthlyCashFlow >= 0 ? 'positive' : 'negative');
+
+            // Monthly breakdown table
+            const breakdown = [
+                { item: 'Gross Rental Income', monthly: monthlyRent, annual: monthlyRent * 12, isIncome: true },
+                { item: 'Other Rental Income', monthly: otherIncome, annual: otherIncome * 12, isIncome: true },
+                { item: 'Vacancy Loss', monthly: -monthlyRent * vacancyRate, annual: -monthlyRent * 12 * vacancyRate, isIncome: false },
+                { item: 'Effective Rental Income', monthly: totalMonthlyIncome, annual: totalMonthlyIncome * 12, isIncome: true, bold: true },
+                { item: '', monthly: 0, annual: 0, isIncome: false, spacer: true },
+                { item: 'Mortgage P&I', monthly: -monthlyPI, annual: -monthlyPI * 12, isIncome: false },
+                { item: 'Property Management', monthly: -propertyManagement, annual: -propertyManagement * 12, isIncome: false },
+                { item: 'Property Tax', monthly: -monthlyPropertyTax, annual: -propertyTax, isIncome: false },
+                { item: 'Insurance', monthly: -monthlyInsurance, annual: -insurance, isIncome: false },
+                { item: 'HOA Fees', monthly: -monthlyHOA, annual: -hoaFees, isIncome: false },
+                { item: 'Utilities', monthly: -utilities, annual: -utilities * 12, isIncome: false },
+                { item: 'Maintenance Reserve', monthly: -monthlyMaintenance, annual: -monthlyMaintenance * 12, isIncome: false },
+                { item: 'Total Expenses', monthly: -totalMonthlyExpenses, annual: -totalMonthlyExpenses * 12, isIncome: false, bold: true },
+                { item: '', monthly: 0, annual: 0, isIncome: false, spacer: true },
+                { item: 'Net Cash Flow', monthly: monthlyCashFlow, annual: annualCashFlow, isIncome: monthlyCashFlow >= 0, bold: true }
+            ];
+
+            let breakdownHTML = '';
+            breakdown.forEach(row => {
+                if (row.spacer) {
+                    breakdownHTML += '<tr><td colspan="3" style="height: 10px;"></td></tr>';
+                } else {
+                    const rowClass = row.bold ? 'font-weight: 600; border-top: 2px solid #ddd;' : '';
+                    const valueClass = row.monthly < 0 ? 'negative-value' : (row.monthly > 0 && !row.isIncome ? 'positive-value' : '');
+                    breakdownHTML += `
+                        <tr style="${rowClass}">
+                            <td>${row.item}</td>
+                            <td class="currency ${valueClass}" style="text-align: right;">${formatCurrency(row.monthly)}</td>
+                            <td class="currency ${valueClass}" style="text-align: right;">${formatCurrency(row.annual)}</td>
+                        </tr>
+                    `;
+                }
+            });
+            document.getElementById('monthlyBreakdownBody').innerHTML = breakdownHTML;
+
+            // Multi-year projections
+            generateProjection(5, purchasePrice, loanAmount, monthlyRate, numPayments, monthlyRent,
+                              otherIncome, vacancyRate, managementFee, propertyTax, insurance, hoaFees, utilities,
+                              maintenanceReserve, appreciation, rentGrowth, totalInvested, sellingCosts);
+            generateProjection(10, purchasePrice, loanAmount, monthlyRate, numPayments, monthlyRent,
+                              otherIncome, vacancyRate, managementFee, propertyTax, insurance, hoaFees, utilities,
+                              maintenanceReserve, appreciation, rentGrowth, totalInvested, sellingCosts);
+            generateProjection(30, purchasePrice, loanAmount, monthlyRate, numPayments, monthlyRent,
+                              otherIncome, vacancyRate, managementFee, propertyTax, insurance, hoaFees, utilities,
+                              maintenanceReserve, appreciation, rentGrowth, totalInvested, sellingCosts);
+
+            // Sensitivity analysis
+            generateSensitivityAnalysis(purchasePrice, loanAmount, monthlyRate, numPayments, monthlyRent,
+                                       otherIncome, vacancyRate, managementFee, propertyTax, insurance, hoaFees, utilities,
+                                       maintenanceReserve, totalInvested);
+
+            // Update Investment Savvy Score based on 10-year IRR
+            updateSavvyScore();
+        }
+
+        function updateSavvyScore() {
+            // Calculate 10-year scenario to get representative IRR
+            const purchasePrice = parseFloat(document.getElementById('purchasePrice').value);
+            const downPaymentPct = parseFloat(document.getElementById('downPayment').value) / 100;
+            const interestRate = parseFloat(document.getElementById('interestRate').value) / 100;
+            const loanTerm = parseFloat(document.getElementById('loanTerm').value);
+            const propertyTax = parseFloat(document.getElementById('propertyTax').value);
+            const insurance = parseFloat(document.getElementById('insurance').value);
+            const hoaFees = parseFloat(document.getElementById('hoaFees').value);
+            const monthlyRent = parseFloat(document.getElementById('monthlyRent').value);
+            const otherIncome = parseFloat(document.getElementById('otherIncome').value);
+            const vacancyRate = parseFloat(document.getElementById('vacancyRate').value) / 100;
+            const managementFee = parseFloat(document.getElementById('managementFee').value) / 100;
+            const utilities = parseFloat(document.getElementById('utilities').value);
+            const maintenanceReserve = parseFloat(document.getElementById('maintenanceReserve').value) / 100;
+            const initialRenovation = parseFloat(document.getElementById('initialRenovation').value);
+            const appreciation = parseFloat(document.getElementById('appreciation').value) / 100;
+            const rentGrowth = parseFloat(document.getElementById('rentGrowth').value) / 100;
+            const sellingCosts = parseFloat(document.getElementById('sellingCosts').value) / 100;
+
+            const downPayment = purchasePrice * downPaymentPct;
+            const loanAmount = purchasePrice - downPayment;
+            const monthlyRate = interestRate / 12;
+            const numPayments = loanTerm * 12;
+            const closingCosts = purchasePrice * 0.03;
+            const totalInvested = downPayment + closingCosts + initialRenovation;
+
+            // Calculate 10-year IRR
+            let propertyValue = purchasePrice;
+            let remainingBalance = loanAmount;
+            let cashFlows = [-totalInvested];
+
+            for (let year = 1; year <= 10; year++) {
+                propertyValue *= (1 + appreciation);
+                const currentRent = monthlyRent * Math.pow(1 + rentGrowth, year - 1);
+                const effectiveRent = currentRent * (1 - vacancyRate);
+                const totalMonthlyIncome = effectiveRent + otherIncome;
+
+                const annualPI = calculateAnnualPayment(remainingBalance, monthlyRate, numPayments - (year - 1) * 12);
+                const annualPrincipal = calculatePrincipalPayment(remainingBalance, monthlyRate, numPayments - (year - 1) * 12);
+                const propertyManagement = effectiveRent * 12 * managementFee;
+                const annualMaintenance = propertyValue * maintenanceReserve;
+
+                const totalAnnualExpenses = annualPI + propertyManagement + propertyTax + insurance + hoaFees + utilities * 12 + annualMaintenance;
+                const annualCashFlow = totalMonthlyIncome * 12 - totalAnnualExpenses;
+
+                remainingBalance -= annualPrincipal;
+                if (remainingBalance < 0) remainingBalance = 0;
+
+                if (year === 10) {
+                    const saleProceeds = propertyValue * (1 - sellingCosts) - remainingBalance;
+                    cashFlows.push(annualCashFlow + saleProceeds);
+                } else {
+                    cashFlows.push(annualCashFlow);
+                }
+            }
+
+            const irr10yr = calculateIRR(cashFlows) * 100;
+
+            // Determine score
+            const savvyScore = document.getElementById('savvyScore');
+            const savvyValue = document.getElementById('savvyValue');
+            const savvySubtext = document.getElementById('savvySubtext');
+
+            savvyScore.classList.remove('good', 'neutral', 'bad');
+
+            const guidanceTitle = document.getElementById('guidanceTitle');
+            const guidanceText = document.getElementById('guidanceText');
+
+            if (irr10yr >= 10) {
+                savvyScore.classList.add('good');
+                savvyValue.textContent = 'STRONG';
+                savvySubtext.textContent = `Excellent investment (${irr10yr.toFixed(1)}% 10yr IRR)`;
+                guidanceTitle.textContent = 'STRONG: Beats Market Alternatives';
+                guidanceText.textContent = `${irr10yr.toFixed(1)}% returns exceed typical stock market (~10% historical). You're getting superior risk-adjusted returns while controlling a tangible asset that appreciates, provides tax benefits, and builds forced equity through tenant mortgage paydown. Worth the landlord effort.`;
+            } else if (irr10yr >= 6) {
+                savvyScore.classList.add('neutral');
+                savvyValue.textContent = 'COMPETITIVE';
+                savvySubtext.textContent = `Market comparable (${irr10yr.toFixed(1)}% 10yr IRR)`;
+                guidanceTitle.textContent = 'COMPETITIVE: Market-Comparable with Real Asset';
+                guidanceText.textContent = `${irr10yr.toFixed(1)}% IRR is competitive with stock market returns when you factor in the full picture: ${(downPaymentPct * 100).toFixed(0)}% down controlling 100% appreciation, tax benefits (depreciation, mortgage interest), forced savings from tenant payments, and inflation hedging. Plus you're gaining equity in a tangible asset and locking in a future home at today's prices.`;
+            } else if (irr10yr >= 0) {
+                savvyScore.classList.add('bad');
+                savvyValue.textContent = 'VIABLE';
+                savvySubtext.textContent = `Equity play (${irr10yr.toFixed(1)}% 10yr IRR)`;
+                guidanceTitle.textContent = 'VIABLE: Future Primary Residence Strategy';
+                guidanceText.textContent = `${irr10yr.toFixed(1)}% IRR is below pure investment standards, but makes sense if you're securing a future home at current prices while renters subsidize ownership costs. Building equity someone else pays for beats saving cash that loses to inflation. Key question: Can you deploy capital elsewhere AND secure future housing?`;
+            } else {
+                savvyScore.classList.add('bad');
+                savvyValue.textContent = 'CAUTION';
+                savvySubtext.textContent = `Negative returns (${irr10yr.toFixed(1)}% 10yr IRR)`;
+                guidanceTitle.textContent = 'CAUTION: Reassess Assumptions';
+                guidanceText.textContent = `${irr10yr.toFixed(1)}% IRR means losing money even with leverage and tax benefits. Review vacancy rates, rental income projections, and expenses. Consider if property price, location, or operating costs make this unviable. Sometimes walking away is the smartest investment decision.`;
+            }
+        }
+
+        function generateProjection(years, purchasePrice, loanAmount, monthlyRate, numPayments,
+                                   baseRent, otherIncome, vacancyRate, managementFee, propertyTax, insurance,
+                                   hoaFees, utilities, maintenanceReserve, appreciation, rentGrowth,
+                                   totalInvested, sellingCosts) {
+            let tableHTML = `
+                <thead>
+                    <tr>
+                        <th>Year</th>
+                        <th style="text-align: right;">Property Value</th>
+                        <th style="text-align: right;">Loan Balance</th>
+                        <th style="text-align: right;">Equity</th>
+                        <th style="text-align: right;">Annual Cash Flow</th>
+                        <th style="text-align: right;">Cumulative Cash</th>
+                        <th style="text-align: right;">Total Return</th>
+                        <th style="text-align: right;">IRR</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+
+            let propertyValue = purchasePrice;
+            let remainingBalance = loanAmount;
+            let cumulativeCash = 0;
+            let cashFlows = [-totalInvested];
+
+            for (let year = 1; year <= years; year++) {
+                // Update property value
+                propertyValue *= (1 + appreciation);
+
+                // Calculate annual rent with growth
+                const currentRent = baseRent * Math.pow(1 + rentGrowth, year - 1);
+                const effectiveRent = currentRent * (1 - vacancyRate);
+                const totalMonthlyIncome = effectiveRent + otherIncome;
+
+                // Annual expenses
+                const annualPI = calculateAnnualPayment(remainingBalance, monthlyRate, numPayments - (year - 1) * 12);
+                const annualPrincipal = calculatePrincipalPayment(remainingBalance, monthlyRate, numPayments - (year - 1) * 12);
+                const propertyManagement = effectiveRent * 12 * managementFee;
+                const annualMaintenance = propertyValue * maintenanceReserve;
+
+                const totalAnnualExpenses = annualPI + propertyManagement + propertyTax + insurance + hoaFees + utilities * 12 + annualMaintenance;
+                const annualCashFlow = totalMonthlyIncome * 12 - totalAnnualExpenses;
+
+                // Update loan balance
+                remainingBalance -= annualPrincipal;
+                if (remainingBalance < 0) remainingBalance = 0;
+
+                // Calculate equity
+                const equity = propertyValue - remainingBalance;
+
+                // Cumulative cash
+                cumulativeCash += annualCashFlow;
+
+                // Add cash flow to array (without sale proceeds yet)
+                cashFlows.push(annualCashFlow);
+
+                // If final year, calculate with sale proceeds for Total Return and IRR
+                let totalReturn = cumulativeCash + equity - totalInvested;
+                let irr = 0;
+
+                if (year === years) {
+                    const saleProceeds = propertyValue * (1 - sellingCosts) - remainingBalance;
+                    totalReturn = cumulativeCash + saleProceeds - totalInvested;
+                    // Replace last cash flow with annual cash flow + sale proceeds for IRR
+                    cashFlows[cashFlows.length - 1] = annualCashFlow + saleProceeds;
+                    irr = calculateIRR(cashFlows) * 100;
+                } else {
+                    // For non-final years, calculate IRR assuming you'd sell now
+                    const tempCashFlows = [...cashFlows];
+                    const saleProceeds = propertyValue * (1 - sellingCosts) - remainingBalance;
+                    tempCashFlows[tempCashFlows.length - 1] = annualCashFlow + saleProceeds;
+                    irr = calculateIRR(tempCashFlows) * 100;
+                }
+
+                tableHTML += `
+                    <tr>
+                        <td>${year}</td>
+                        <td style="text-align: right;">${formatCurrency(propertyValue)}</td>
+                        <td style="text-align: right;">${formatCurrency(remainingBalance)}</td>
+                        <td style="text-align: right;">${formatCurrency(equity)}</td>
+                        <td style="text-align: right;" class="${annualCashFlow >= 0 ? 'positive-value' : 'negative-value'}">${formatCurrency(annualCashFlow)}</td>
+                        <td style="text-align: right;" class="${cumulativeCash >= 0 ? 'positive-value' : 'negative-value'}">${formatCurrency(cumulativeCash)}</td>
+                        <td style="text-align: right;" class="${totalReturn >= 0 ? 'positive-value' : 'negative-value'}">${formatCurrency(totalReturn)}</td>
+                        <td style="text-align: right;">${irr.toFixed(2)}%</td>
+                    </tr>
+                `;
+            }
+
+            tableHTML += '</tbody>';
+            document.getElementById(`projection${years}yr`).innerHTML = tableHTML;
+        }
+
+        function generateSensitivityAnalysis(purchasePrice, loanAmount, monthlyRate, numPayments,
+                                            baseRent, otherIncome, vacancyRate, managementFee, propertyTax,
+                                            insurance, hoaFees, utilities, maintenanceReserve, totalInvested) {
+            // Vacancy sensitivity
+            let vacancyHTML = '';
+            const vacancyRates = [0.2, 0.3, 0.4, 0.5, 0.6];
+            vacancyRates.forEach(rate => {
+                const cf = calculateCashFlow(purchasePrice, loanAmount, monthlyRate, numPayments, baseRent,
+                                            otherIncome, rate, managementFee, propertyTax, insurance, hoaFees,
+                                            utilities, maintenanceReserve);
+                const coc = (cf * 12 / totalInvested * 100).toFixed(2);
+                vacancyHTML += `
+                    <div class="sensitivity-row">
+                        <span>${(rate * 100).toFixed(0)}% vacancy</span>
+                        <span class="${cf >= 0 ? 'positive-value' : 'negative-value'}">${formatCurrency(cf)}/mo (${coc}% CoC)</span>
+                    </div>
+                `;
+            });
+            document.getElementById('vacancySensitivity').innerHTML = vacancyHTML;
+
+            // Maintenance sensitivity
+            let maintenanceHTML = '';
+            const maintenanceRates = [0.005, 0.01, 0.015, 0.02, 0.025];
+            maintenanceRates.forEach(rate => {
+                const cf = calculateCashFlow(purchasePrice, loanAmount, monthlyRate, numPayments, baseRent,
+                                            otherIncome, vacancyRate, managementFee, propertyTax, insurance, hoaFees,
+                                            utilities, rate);
+                const coc = (cf * 12 / totalInvested * 100).toFixed(2);
+                maintenanceHTML += `
+                    <div class="sensitivity-row">
+                        <span>${(rate * 100).toFixed(1)}% maintenance</span>
+                        <span class="${cf >= 0 ? 'positive-value' : 'negative-value'}">${formatCurrency(cf)}/mo (${coc}% CoC)</span>
+                    </div>
+                `;
+            });
+            document.getElementById('maintenanceSensitivity').innerHTML = maintenanceHTML;
+
+            // Rent sensitivity
+            let rentHTML = '';
+            const rentMultipliers = [0.8, 0.9, 1.0, 1.1, 1.2];
+            rentMultipliers.forEach(mult => {
+                const cf = calculateCashFlow(purchasePrice, loanAmount, monthlyRate, numPayments, baseRent * mult,
+                                            otherIncome, vacancyRate, managementFee, propertyTax, insurance, hoaFees,
+                                            utilities, maintenanceReserve);
+                const coc = (cf * 12 / totalInvested * 100).toFixed(2);
+                rentHTML += `
+                    <div class="sensitivity-row">
+                        <span>${formatCurrency(baseRent * mult)}/mo</span>
+                        <span class="${cf >= 0 ? 'positive-value' : 'negative-value'}">${formatCurrency(cf)}/mo (${coc}% CoC)</span>
+                    </div>
+                `;
+            });
+            document.getElementById('rentSensitivity').innerHTML = rentHTML;
+        }
+
+        function calculateCashFlow(purchasePrice, loanAmount, monthlyRate, numPayments, monthlyRent,
+                                   otherIncome, vacancyRate, managementFee, propertyTax, insurance, hoaFees,
+                                   utilities, maintenanceReserve) {
+            const monthlyPI = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) /
+                             (Math.pow(1 + monthlyRate, numPayments) - 1);
+            const effectiveRent = monthlyRent * (1 - vacancyRate);
+            const propertyManagement = effectiveRent * managementFee;
+            const totalMonthlyIncome = effectiveRent + otherIncome;
+            const monthlyPropertyTax = propertyTax / 12;
+            const monthlyInsurance = insurance / 12;
+            const monthlyHOA = hoaFees / 12;
+            const monthlyMaintenance = (purchasePrice * maintenanceReserve) / 12;
+
+            const totalMonthlyExpenses = monthlyPI + propertyManagement + monthlyPropertyTax +
+                                        monthlyInsurance + monthlyHOA + utilities + monthlyMaintenance;
+            return totalMonthlyIncome - totalMonthlyExpenses;
+        }
+
+        function calculateAnnualPayment(balance, monthlyRate, remainingPayments) {
+            if (remainingPayments <= 0) return 0;
+            const monthlyPayment = balance * (monthlyRate * Math.pow(1 + monthlyRate, remainingPayments)) /
+                                  (Math.pow(1 + monthlyRate, remainingPayments) - 1);
+            return monthlyPayment * 12;
+        }
+
+        function calculatePrincipalPayment(balance, monthlyRate, remainingPayments) {
+            if (remainingPayments <= 0) return balance;
+            let principal = 0;
+            let currentBalance = balance;
+            const monthlyPayment = balance * (monthlyRate * Math.pow(1 + monthlyRate, remainingPayments)) /
+                                  (Math.pow(1 + monthlyRate, remainingPayments) - 1);
+
+            for (let i = 0; i < 12 && i < remainingPayments; i++) {
+                const interest = currentBalance * monthlyRate;
+                const principalPmt = monthlyPayment - interest;
+                principal += principalPmt;
+                currentBalance -= principalPmt;
+            }
+            return principal;
+        }
+
+        function calculateIRR(cashFlows) {
+            // Check if we have valid cash flows
+            if (cashFlows.length < 2) return 0;
+
+            // Check if all cash flows are same sign (no IRR exists)
+            const allPositive = cashFlows.every(cf => cf >= 0);
+            const allNegative = cashFlows.every(cf => cf <= 0);
+            if (allPositive || allNegative) return 0;
+
+            // Newton-Raphson method for IRR calculation
+            let irr = 0.1; // Initial guess
+            const maxIterations = 1000;
+            const tolerance = 0.00001;
+
+            for (let i = 0; i < maxIterations; i++) {
+                let npv = 0;
+                let dnpv = 0;
+
+                for (let j = 0; j < cashFlows.length; j++) {
+                    const discountFactor = Math.pow(1 + irr, j);
+                    npv += cashFlows[j] / discountFactor;
+                    if (j > 0) {
+                        dnpv -= j * cashFlows[j] / Math.pow(1 + irr, j + 1);
+                    }
+                }
+
+                // Check for convergence
+                if (Math.abs(npv) < tolerance) {
+                    return irr;
+                }
+
+                // Avoid division by zero or very small numbers
+                if (Math.abs(dnpv) < 0.000001) {
+                    break;
+                }
+
+                let newIrr = irr - npv / dnpv;
+
+                // Keep IRR in reasonable bounds
+                if (newIrr < -0.99) newIrr = -0.99;
+                if (newIrr > 10) newIrr = 10;
+
+                if (Math.abs(newIrr - irr) < tolerance) {
+                    return newIrr;
+                }
+
+                irr = newIrr;
+            }
+
+            // If didn't converge, try bisection method as fallback
+            let low = -0.99;
+            let high = 5.0;
+
+            for (let i = 0; i < 100; i++) {
+                const mid = (low + high) / 2;
+                let npv = 0;
+
+                for (let j = 0; j < cashFlows.length; j++) {
+                    npv += cashFlows[j] / Math.pow(1 + mid, j);
+                }
+
+                if (Math.abs(npv) < tolerance) {
+                    return mid;
+                }
+
+                if (npv > 0) {
+                    low = mid;
+                } else {
+                    high = mid;
+                }
+
+                if (Math.abs(high - low) < tolerance) {
+                    return mid;
+                }
+            }
+
+            return 0;
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(value);
+        }
+
+        function switchScenario(scenario) {
+            // Update tabs
+            document.querySelectorAll('.scenario-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.scenario-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(scenario).classList.add('active');
+        }
+
+        // Add event listeners to all inputs
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', calculate);
+        });
+
+        // Initial calculation
+        calculate();
+    </script>
+</body>
+</html>
