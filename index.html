@@ -3,12 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Buy vs. Rent Financial Simulator</title>
+    <title>Buy vs Rent Calculator | Real Estate Investment Analysis Tool</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Interactive buy vs rent calculator with wealth projections, DTI analysis, and AI-powered financial insights. Compare homeownership vs renting with real-time calculations.">
+    <meta name="keywords" content="buy vs rent calculator, real estate investment, home affordability, DTI calculator, rent vs buy, mortgage calculator">
+    <meta name="author" content="FU Real Estate">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Buy vs Rent Calculator | Real Estate Investment Tool">
+    <meta property="og:description" content="Make informed housing decisions with our comprehensive buy vs rent calculator featuring wealth projections and AI financial analysis.">
+    <meta property="og:url" content="https://furealestate.com">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Buy vs Rent Calculator">
+    <meta name="twitter:description" content="Interactive financial simulator for buy vs rent decisions with AI-powered insights.">
+
+    <!-- Preconnect for Performance -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- External Resources -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -37,13 +59,36 @@
                     <h3 class="text-lg font-semibold text-indigo-400 border-b border-gray-700 pb-2">Home & Financials</h3>
                     <div>
                         <label for="home_price" class="block text-sm font-medium text-gray-300">Home Price</label>
-                        <input type="number" id="home_price" value="1000000" class="mt-1 w-full bg-gray-700 border-gray-600 rounded-md shadow-sm p-2 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        <input
+                            type="number"
+                            id="home_price"
+                            name="home_price"
+                            value="1000000"
+                            min="1000"
+                            max="50000000"
+                            step="1000"
+                            required
+                            aria-label="Home purchase price"
+                            aria-describedby="home-price-desc"
+                            class="mt-1 w-full bg-gray-700 border-gray-600 rounded-md shadow-sm p-2 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        <span id="home-price-desc" class="sr-only">Enter the purchase price of the home in dollars</span>
                     </div>
 
                     <!-- Reserve Cash - Prominent Feature -->
                     <div class="reserve-cash-section">
                         <label for="reserve_cash" class="block text-sm font-medium text-yellow-300">💰 Total Reserve Cash Available</label>
-                        <input type="number" id="reserve_cash" value="800000" class="mt-1 w-full bg-gray-700 border-yellow-500 border-2 rounded-md shadow-sm p-2 text-white focus:ring-yellow-500 focus:border-yellow-500 font-semibold">
+                        <input
+                            type="number"
+                            id="reserve_cash"
+                            name="reserve_cash"
+                            value="800000"
+                            min="0"
+                            max="100000000"
+                            step="1000"
+                            aria-label="Total reserve cash available for down payment and expenses"
+                            aria-describedby="reserve-cash-desc"
+                            class="mt-1 w-full bg-gray-700 border-yellow-500 border-2 rounded-md shadow-sm p-2 text-white focus:ring-yellow-500 focus:border-yellow-500 font-semibold">
+                        <span id="reserve-cash-desc" class="sr-only">Total cash available including down payment, renovations, and DTI support</span>
 
                         <!-- Reserve Breakdown Card -->
                         <div id="reserve_breakdown_card" class="mt-2 p-3 rounded-lg border-2 bg-gray-900">
@@ -70,7 +115,19 @@
 
                      <div>
                         <label for="household_income" class="block text-sm font-medium text-gray-300">Annual Household Income</label>
-                        <input type="number" id="household_income" value="250000" class="mt-1 w-full bg-gray-700 border-gray-600 rounded-md shadow-sm p-2 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        <input
+                            type="number"
+                            id="household_income"
+                            name="household_income"
+                            value="250000"
+                            min="1000"
+                            max="10000000"
+                            step="1000"
+                            required
+                            aria-label="Annual household income before taxes"
+                            aria-describedby="income-desc"
+                            class="mt-1 w-full bg-gray-700 border-gray-600 rounded-md shadow-sm p-2 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        <span id="income-desc" class="sr-only">Enter your total annual household income used for DTI calculations</span>
                     </div>
                     <div class="input-group">
                         <label class="block text-sm font-medium text-gray-300">Down Payment %</label>
@@ -97,8 +154,18 @@
                     </div>
                     <div>
                         <label for="utilities_offset" class="block text-sm font-medium text-gray-300">Monthly Utilities Included in Rent</label>
-                        <input type="number" id="utilities_offset" value="0" class="mt-1 w-full bg-gray-700 border-gray-600 rounded-md shadow-sm p-2 text-white focus:ring-indigo-500 focus:border-indigo-500">
-                        <p class="text-xs text-gray-500 mt-1">e.g., garbage, internet covered by landlord.</p>
+                        <input
+                            type="number"
+                            id="utilities_offset"
+                            name="utilities_offset"
+                            value="0"
+                            min="0"
+                            max="5000"
+                            step="10"
+                            aria-label="Monthly utilities included in rent"
+                            aria-describedby="utilities-desc"
+                            class="mt-1 w-full bg-gray-700 border-gray-600 rounded-md shadow-sm p-2 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        <p id="utilities-desc" class="text-xs text-gray-500 mt-1">e.g., garbage, internet covered by landlord.</p>
                     </div>
                 </div>
 
@@ -167,7 +234,18 @@
                     <h3 class="text-lg font-semibold text-indigo-400 border-b border-gray-700 pb-2">Investment & Tax Details</h3>
                     <div>
                         <label for="initial_monthly_rent" class="block text-sm font-medium text-gray-300">Initial Monthly Rent (if you rent)</label>
-                        <input type="number" id="initial_monthly_rent" value="3300" class="mt-1 w-full bg-gray-700 border-gray-600 rounded-md shadow-sm p-2 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        <input
+                            type="number"
+                            id="initial_monthly_rent"
+                            name="initial_monthly_rent"
+                            value="3300"
+                            min="100"
+                            max="100000"
+                            step="50"
+                            aria-label="Initial monthly rent payment"
+                            aria-describedby="rent-desc"
+                            class="mt-1 w-full bg-gray-700 border-gray-600 rounded-md shadow-sm p-2 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                        <span id="rent-desc" class="sr-only">Monthly rent payment if you choose to rent instead of buy</span>
                     </div>
                     <div class="input-group">
                         <label class="block text-sm font-medium text-gray-300">Annual Rent Increase %</label>
@@ -223,7 +301,16 @@
                     <div id="rental-inputs-container">
                         <div class="input-group">
                             <label class="block text-sm font-medium text-gray-300">Initial Monthly Rental Income</label>
-                            <input type="number" id="rental_income_monthly" value="4000" class="mt-1 w-full bg-gray-700 border-gray-600 rounded-md shadow-sm p-2 text-white focus:ring-indigo-500 focus:border-indigo-500">
+                            <input
+                                type="number"
+                                id="rental_income_monthly"
+                                name="rental_income_monthly"
+                                value="4000"
+                                min="0"
+                                max="100000"
+                                step="100"
+                                aria-label="Initial monthly rental income when renting out property"
+                                class="mt-1 w-full bg-gray-700 border-gray-600 rounded-md shadow-sm p-2 text-white focus:ring-indigo-500 focus:border-indigo-500">
                         </div>
                         <div class="input-group mt-4">
                             <label class="block text-sm font-medium text-gray-300">Annual Rental Income Increase %</label>

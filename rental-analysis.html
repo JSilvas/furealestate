@@ -3,7 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rental Property Investment Analysis</title>
+    <title>Short-Term Rental Investment Analysis | ROI Calculator</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Comprehensive rental property investment analysis tool with cash flow projections, IRR calculations, and sensitivity analysis for short-term rental properties.">
+    <meta name="keywords" content="rental property calculator, short-term rental ROI, Airbnb investment calculator, rental property analysis, cash flow calculator">
+    <meta name="author" content="FU Real Estate">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Short-Term Rental Investment Analysis Tool">
+    <meta property="og:description" content="Analyze your rental property investment with detailed cash flow projections, IRR calculations, and comprehensive financial metrics.">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Rental Property Investment Calculator">
+    <meta name="twitter:description" content="Calculate rental property ROI with comprehensive financial analysis and projections.">
+
     <style>
         * {
             margin: 0;
@@ -550,12 +566,32 @@
                 <div class="input-section">
                     <h3>Property Details</h3>
                     <div class="input-group">
-                        <label>Purchase Price</label>
-                        <input type="number" id="purchasePrice" value="900000" step="1000" class="key-input">
+                        <label for="purchasePrice">Purchase Price</label>
+                        <input
+                            type="number"
+                            id="purchasePrice"
+                            name="purchasePrice"
+                            value="900000"
+                            min="10000"
+                            max="50000000"
+                            step="1000"
+                            required
+                            aria-label="Property purchase price"
+                            class="key-input">
                     </div>
                     <div class="input-group">
-                        <label>Down Payment %</label>
-                        <input type="number" id="downPayment" value="40" step="1" min="0" max="100" class="key-input">
+                        <label for="downPayment">Down Payment %</label>
+                        <input
+                            type="number"
+                            id="downPayment"
+                            name="downPayment"
+                            value="40"
+                            min="0"
+                            max="100"
+                            step="1"
+                            required
+                            aria-label="Down payment percentage"
+                            class="key-input">
                     </div>
                     <div class="input-group">
                         <label>Interest Rate %</label>
@@ -582,16 +618,45 @@
                 <div class="input-section">
                     <h3>Income & Operations</h3>
                     <div class="input-group">
-                        <label>Monthly Gross Rental Income</label>
-                        <input type="number" id="monthlyRent" value="10000" step="100" class="key-input">
+                        <label for="monthlyRent">Monthly Gross Rental Income</label>
+                        <input
+                            type="number"
+                            id="monthlyRent"
+                            name="monthlyRent"
+                            value="10000"
+                            min="0"
+                            max="500000"
+                            step="100"
+                            required
+                            aria-label="Monthly gross rental income"
+                            class="key-input">
                     </div>
                     <div class="input-group">
-                        <label>Other Rental Income (monthly)</label>
-                        <input type="number" id="otherIncome" value="0" step="50" class="key-input">
+                        <label for="otherIncome">Other Rental Income (monthly)</label>
+                        <input
+                            type="number"
+                            id="otherIncome"
+                            name="otherIncome"
+                            value="0"
+                            min="0"
+                            max="100000"
+                            step="50"
+                            aria-label="Other monthly rental income"
+                            class="key-input">
                     </div>
                     <div class="input-group">
-                        <label>Vacancy Rate %</label>
-                        <input type="number" id="vacancyRate" value="30" step="1" min="0" max="100" class="key-input">
+                        <label for="vacancyRate">Vacancy Rate %</label>
+                        <input
+                            type="number"
+                            id="vacancyRate"
+                            name="vacancyRate"
+                            value="30"
+                            min="0"
+                            max="100"
+                            step="1"
+                            required
+                            aria-label="Expected vacancy rate percentage"
+                            class="key-input">
                     </div>
                     <div class="input-group">
                         <label>Property Management Fee %</label>
@@ -722,6 +787,52 @@
     </div>
 
     <script>
+        'use strict';
+
+        // --- CONSTANTS ---
+        const CONSTANTS = {
+            CLOSING_COSTS_PERCENT: 0.03,
+            MIN_PURCHASE_PRICE: 10000,
+            MAX_PURCHASE_PRICE: 50000000,
+            IRR_MAX_ITERATIONS: 1000,
+            IRR_TOLERANCE: 0.00001,
+            IRR_MIN_BOUND: -0.99,
+            IRR_MAX_BOUND: 10,
+        };
+
+        // --- UTILITY FUNCTIONS ---
+        /**
+         * Safe division that handles division by zero
+         * @param {number} numerator
+         * @param {number} denominator
+         * @returns {number} Result or 0 if denominator is 0
+         */
+        function safeDivide(numerator, denominator) {
+            return denominator !== 0 ? numerator / denominator : 0;
+        }
+
+        /**
+         * Validates numeric input within acceptable ranges
+         * @param {number} value - Value to validate
+         * @param {number} min - Minimum allowed value
+         * @param {number} max - Maximum allowed value
+         * @returns {number} Validated value clamped to range
+         */
+        function validateNumericInput(value, min, max) {
+            const numValue = parseFloat(value);
+            if (isNaN(numValue)) return min;
+            return Math.max(min, Math.min(max, numValue));
+        }
+
+        /**
+         * Logs errors to console with context
+         * @param {string} context - Error context
+         * @param {Error} error - Error object
+         */
+        function logError(context, error) {
+            console.error(`[${context}]`, error);
+        }
+
         // Set initial state based on screen size
         function initSidebar() {
             const inputs = document.getElementById('inputs');
@@ -747,9 +858,12 @@
         initSidebar();
 
         function calculate() {
-            // Get inputs
-            const purchasePrice = parseFloat(document.getElementById('purchasePrice').value);
-            const downPaymentPct = parseFloat(document.getElementById('downPayment').value) / 100;
+            try {
+                // Get and validate inputs
+                let purchasePrice = parseFloat(document.getElementById('purchasePrice').value);
+                purchasePrice = validateNumericInput(purchasePrice, CONSTANTS.MIN_PURCHASE_PRICE, CONSTANTS.MAX_PURCHASE_PRICE);
+
+                const downPaymentPct = parseFloat(document.getElementById('downPayment').value) / 100;
             const interestRate = parseFloat(document.getElementById('interestRate').value) / 100;
             const loanTerm = parseFloat(document.getElementById('loanTerm').value);
             const propertyTax = parseFloat(document.getElementById('propertyTax').value);
@@ -774,8 +888,8 @@
             const monthlyPI = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) /
                               (Math.pow(1 + monthlyRate, numPayments) - 1);
 
-            // Calculate closing costs (estimate 3% of purchase price)
-            const closingCosts = purchasePrice * 0.03;
+            // Calculate closing costs
+            const closingCosts = purchasePrice * CONSTANTS.CLOSING_COSTS_PERCENT;
             const totalInvested = downPayment + closingCosts + initialRenovation;
 
             // Monthly expenses
@@ -801,8 +915,8 @@
 
             // Break-even calculation
             const fixedExpenses = monthlyPI + monthlyPropertyTax + monthlyInsurance + monthlyHOA + utilities + monthlyMaintenance;
-            const breakEvenRent = fixedExpenses / (1 - managementFee);
-            const breakEvenOccupancy = (breakEvenRent / monthlyRent) * 100;
+            const breakEvenRent = safeDivide(fixedExpenses, (1 - managementFee));
+            const breakEvenOccupancy = safeDivide(breakEvenRent, monthlyRent) * 100;
 
             // Update main metrics
             document.getElementById('monthlyCashFlow').textContent = formatCurrency(monthlyCashFlow);
@@ -869,6 +983,19 @@
 
             // Update Investment Savvy Score based on 10-year IRR
             updateSavvyScore();
+            } catch (error) {
+                logError('calculate', error);
+                // Display user-friendly error message
+                const resultsContainer = document.querySelector('.results');
+                if (resultsContainer) {
+                    resultsContainer.innerHTML = `
+                        <div style="background: rgba(239, 68, 68, 0.1); border: 2px solid #ef4444; border-radius: 8px; padding: 20px; text-align: center;">
+                            <p style="color: #ef4444; font-weight: 600; font-size: 18px; margin-bottom: 10px;">Unable to Calculate Results</p>
+                            <p style="color: #999; font-size: 14px;">Please check your input values and try again. Ensure all fields contain valid numbers.</p>
+                        </div>
+                    `;
+                }
+            }
         }
 
         function updateSavvyScore() {
@@ -1156,18 +1283,19 @@
         }
 
         function calculateIRR(cashFlows) {
-            // Check if we have valid cash flows
-            if (cashFlows.length < 2) return 0;
+            try {
+                // Check if we have valid cash flows
+                if (cashFlows.length < 2) return 0;
 
-            // Check if all cash flows are same sign (no IRR exists)
-            const allPositive = cashFlows.every(cf => cf >= 0);
-            const allNegative = cashFlows.every(cf => cf <= 0);
-            if (allPositive || allNegative) return 0;
+                // Check if all cash flows are same sign (no IRR exists)
+                const allPositive = cashFlows.every(cf => cf >= 0);
+                const allNegative = cashFlows.every(cf => cf <= 0);
+                if (allPositive || allNegative) return 0;
 
-            // Newton-Raphson method for IRR calculation
-            let irr = 0.1; // Initial guess
-            const maxIterations = 1000;
-            const tolerance = 0.00001;
+                // Newton-Raphson method for IRR calculation
+                let irr = 0.1; // Initial guess
+                const maxIterations = CONSTANTS.IRR_MAX_ITERATIONS;
+                const tolerance = CONSTANTS.IRR_TOLERANCE;
 
             for (let i = 0; i < maxIterations; i++) {
                 let npv = 0;
@@ -1191,11 +1319,11 @@
                     break;
                 }
 
-                let newIrr = irr - npv / dnpv;
+                let newIrr = irr - safeDivide(npv, dnpv);
 
                 // Keep IRR in reasonable bounds
-                if (newIrr < -0.99) newIrr = -0.99;
-                if (newIrr > 10) newIrr = 10;
+                if (newIrr < CONSTANTS.IRR_MIN_BOUND) newIrr = CONSTANTS.IRR_MIN_BOUND;
+                if (newIrr > CONSTANTS.IRR_MAX_BOUND) newIrr = CONSTANTS.IRR_MAX_BOUND;
 
                 if (Math.abs(newIrr - irr) < tolerance) {
                     return newIrr;
@@ -1232,6 +1360,10 @@
             }
 
             return 0;
+            } catch (error) {
+                logError('calculateIRR', error);
+                return 0;
+            }
         }
 
         function formatCurrency(value) {

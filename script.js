@@ -1,6 +1,22 @@
 (function() {
     'use strict';
 
+    // --- CONSTANTS ---
+    const CONSTANTS = {
+        LOAN_YEARS: 30,
+        CLOSING_COSTS_PERCENT: 0.03,
+        MIN_DOWN_PAYMENT_FOR_PMI: 0.2,
+        PMI_THRESHOLD_LTV: 0.8,
+        DEBOUNCE_DELAY_MS: 300,
+        MIN_HOME_PRICE: 1000,
+        MAX_HOME_PRICE: 50000000,
+        MIN_INCOME: 1000,
+        MAX_INCOME: 10000000,
+        DTI_EXCELLENT: 28,
+        DTI_ACCEPTABLE: 36,
+        RESERVE_WARNING_THRESHOLD: 0.1, // 10% of down payment
+    };
+
     // --- CHART INSTANCES ---
     let wealthChartInstance;
     let buyingPowerChartInstance;
@@ -10,6 +26,57 @@
 
     // --- FORMATTER ---
     const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+    // --- UTILITY FUNCTIONS ---
+    /**
+     * Debounce function to limit rapid function calls
+     * @param {Function} func - Function to debounce
+     * @param {number} wait - Wait time in milliseconds
+     * @returns {Function} Debounced function
+     */
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    /**
+     * Validates numeric input within acceptable ranges
+     * @param {number} value - Value to validate
+     * @param {number} min - Minimum allowed value
+     * @param {number} max - Maximum allowed value
+     * @returns {number} Validated value clamped to range
+     */
+    function validateNumericInput(value, min, max) {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return min;
+        return Math.max(min, Math.min(max, numValue));
+    }
+
+    /**
+     * Safe division that handles division by zero
+     * @param {number} numerator
+     * @param {number} denominator
+     * @returns {number} Result or 0 if denominator is 0
+     */
+    function safeDivide(numerator, denominator) {
+        return denominator !== 0 ? numerator / denominator : 0;
+    }
+
+    /**
+     * Logs errors to console with context
+     * @param {string} context - Error context
+     * @param {Error} error - Error object
+     */
+    function logError(context, error) {
+        console.error(`[${context}]`, error);
+    }
 
     // --- DOM Elements ---
     const elements = {
@@ -86,8 +153,13 @@
     // --- Core Financial Calculation Engine ---
     // This module is now a pure function, it does not interact with the DOM.
     function calculateSimulation(values) {
-        const loan_years = 30;
-        const time_horizon = values.time_horizon;
+        try {
+            // Validate inputs
+            values.home_price = validateNumericInput(values.home_price, CONSTANTS.MIN_HOME_PRICE, CONSTANTS.MAX_HOME_PRICE);
+            values.household_income = validateNumericInput(values.household_income, CONSTANTS.MIN_INCOME, CONSTANTS.MAX_INCOME);
+
+            const loan_years = CONSTANTS.LOAN_YEARS;
+            const time_horizon = values.time_horizon;
 
         const down_payment = values.home_price * (values.down_payment_percent / 100);
         const renovation_costs = values.home_price * (values.renovation_percent / 100);
@@ -103,15 +175,15 @@
             monthly_mortgage_payment = loan_amount / num_payments;
         }
 
-        const closing_costs = values.home_price * (values.closing_costs_percent / 100);
+        const closing_costs = values.home_price * CONSTANTS.CLOSING_COSTS_PERCENT;
         const initial_monthly_tax = (values.home_price * (values.property_tax_rate_percent / 100)) / 12;
         const initial_monthly_insurance = (values.home_price * (values.home_insurance_rate_percent / 100)) / 12;
         const initial_monthly_maintenance = (values.home_price * (values.maintenance_rate_percent / 100)) / 12;
 
         let total_monthly_buyer_cost_year1 = monthly_mortgage_payment + initial_monthly_tax + initial_monthly_insurance + initial_monthly_maintenance + values.utilities_offset;
 
-        const gross_monthly_income = values.household_income / 12;
-        const housing_dti = gross_monthly_income > 0 ? (total_monthly_buyer_cost_year1 / gross_monthly_income) * 100 : 0;
+        const gross_monthly_income = safeDivide(values.household_income, 12);
+        const housing_dti = safeDivide(total_monthly_buyer_cost_year1, gross_monthly_income) * 100;
 
         // Reserve cash calculations
         let available_reserve = values.reserve_cash - down_payment - renovation_costs;
@@ -126,7 +198,7 @@
             );
         }
         const effective_monthly_cost_year1 = total_monthly_buyer_cost_year1 - month1_reserve_contribution;
-        const effective_dti = gross_monthly_income > 0 ? (effective_monthly_cost_year1 / gross_monthly_income) * 100 : 0;
+        const effective_dti = safeDivide(effective_monthly_cost_year1, gross_monthly_income) * 100;
 
         let current_home_value = values.home_price;
         let remaining_loan_balance = loan_amount;
@@ -200,7 +272,8 @@
             }
 
             let annual_pmi_cost = 0;
-            if (loan_amount > 0 && (down_payment/values.home_price) < 0.2 && remaining_loan_balance / current_home_value > 0.8) {
+            if (loan_amount > 0 && safeDivide(down_payment, values.home_price) < CONSTANTS.MIN_DOWN_PAYMENT_FOR_PMI &&
+                safeDivide(remaining_loan_balance, current_home_value) > CONSTANTS.PMI_THRESHOLD_LTV) {
                 annual_pmi_cost = loan_amount * pmi_rate;
             }
 
@@ -292,6 +365,18 @@
                 appreciation_gain_y1, year1_principal_paid, total_equity_gain_y1, down_payment, leveraged_roe, real_leveraged_roe
             }
         };
+        } catch (error) {
+            logError('calculateSimulation', error);
+            // Return safe default values
+            return {
+                simulationData: [],
+                monthlyCosts: { mortgage: 0, tax: 0, insurance: 0, maintenance: 0, utilities: 0, total_buyer: 0, rent: 0, effective_monthly_cost: 0, month1_reserve_contribution: 0 },
+                ratios: { housing_dti: 0, effective_dti: 0 },
+                reserveAnalysis: { starting_reserve: 0, down_payment: 0, renovation_costs: 0, initial_available_reserve: 0, final_available_reserve: 0, cumulative_reserve_used: 0, reserve_depletion_month: null },
+                rentalAnalysis: { average_annual_rental_cash_flow: 0 },
+                leverageAnalysis: { appreciation_gain_y1: 0, year1_principal_paid: 0, total_equity_gain_y1: 0, down_payment: 0, leveraged_roe: 0, real_leveraged_roe: 0 }
+            };
+        }
     }
 
     // --- Chat State Management ---
@@ -575,9 +660,12 @@
             updateParamsChangeIndicator();
 
         } catch (error) {
-            console.error("Chat error:", error);
+            logError('sendChatMessage', error);
             removeChatLoading();
-            appendChatMessage('model', "I apologize, but I encountered an error processing your request. Please try again.");
+            const errorMessage = error.message.includes('fetch')
+                ? "Unable to connect to the server. Please check your internet connection and try again."
+                : "I apologize, but I encountered an error processing your request. Please try again.";
+            appendChatMessage('model', errorMessage);
         } finally {
             chatElements.sendBtn.disabled = false;
         }
@@ -694,7 +782,8 @@
 
     // --- UI Update Functions ---
     function updateDisplay() {
-        const values = getValues();
+        try {
+            const values = getValues();
         
         // Synchronize rental year slider with time horizon
         const startRentingYearSlider = document.getElementById('start_renting_year_slider');
@@ -723,6 +812,18 @@
         updateLeverageAnalysisUI(leverageAnalysis);
         updateResultsTableUI(simulationData);
         updateWealthChart(simulationData);
+        } catch (error) {
+            logError('updateDisplay', error);
+            // Display user-friendly error message
+            if (elements.resultsOutput) {
+                elements.resultsOutput.innerHTML = `
+                    <div class="bg-red-900/20 border border-red-500 rounded-lg p-4 text-center">
+                        <p class="text-red-400 font-semibold">Unable to calculate results</p>
+                        <p class="text-gray-400 text-sm mt-2">Please check your input values and try again.</p>
+                    </div>
+                `;
+            }
+        }
     }
 
     function safeSetText(el, text) {
@@ -1242,25 +1343,28 @@
 
     // --- Event Listener Setup ---
     function setupEventListeners() {
-        elements.home_price.addEventListener('input', updateDisplay);
-        elements.household_income.addEventListener('input', updateDisplay);
-        elements.initial_monthly_rent.addEventListener('input', updateDisplay);
-        elements.rental_income_monthly.addEventListener('input', updateDisplay);
-        elements.utilities_offset.addEventListener('input', updateDisplay);
-        elements.reserve_cash.addEventListener('input', updateDisplay);
+        // Create debounced version of updateDisplay for better performance
+        const debouncedUpdateDisplay = debounce(updateDisplay, CONSTANTS.DEBOUNCE_DELAY_MS);
+
+        elements.home_price.addEventListener('input', debouncedUpdateDisplay);
+        elements.household_income.addEventListener('input', debouncedUpdateDisplay);
+        elements.initial_monthly_rent.addEventListener('input', debouncedUpdateDisplay);
+        elements.rental_income_monthly.addEventListener('input', debouncedUpdateDisplay);
+        elements.utilities_offset.addEventListener('input', debouncedUpdateDisplay);
+        elements.reserve_cash.addEventListener('input', debouncedUpdateDisplay);
         elements.geminiButton.addEventListener('click', getGeminiAnalysis);
 
         for (const key in inputGroups) {
             const slider = document.getElementById(inputGroups[key].slider);
             const number = document.getElementById(inputGroups[key].number);
-            
+
             slider.addEventListener('input', () => {
                 number.value = slider.value;
-                updateDisplay();
+                debouncedUpdateDisplay();
             });
             number.addEventListener('input', () => {
                 slider.value = number.value;
-                updateDisplay();
+                debouncedUpdateDisplay();
             });
         }
     }
