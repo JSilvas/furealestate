@@ -1,0 +1,17 @@
+[build]
+  # No build command needed since we're serving static files
+  publish = "."
+
+  # Netlify functions directory
+  functions = "netlify/functions"
+
+[[redirects]]
+  # Redirect /api/* requests to Netlify functions
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[dev]
+  # For local development with Netlify CLI
+  port = 3000
+  functions = "netlify/functions"
