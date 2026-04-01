@@ -11,51 +11,30 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <style>
-        .nav-bar {
-            background: #1f2937;
-            padding: 15px 30px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
-
-        .nav-bar a {
-            color: #818cf8;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 6px;
-            transition: background-color 0.2s;
-        }
-
-        .nav-bar a:hover {
-            background-color: #374151;
-        }
-
-        .nav-bar a.active {
-            background-color: #4f46e5;
-            color: white;
-        }
-    </style>
+    <link rel="stylesheet" href="nav.css">
 </head>
 <body class="bg-gray-900 text-gray-200 antialiased">
 
-    <div class="nav-bar">
-        <a href="index.html" class="active">Buy vs Rent Simulator</a>
-        <a href="investment.html">Investment Analysis</a>
-    </div>
+    <nav class="site-nav">
+        <span class="site-nav__brand">FU Real Estate</span>
+        <button class="site-nav__toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="site-nav__links" id="navLinks">
+            <a href="index.html" class="active">Buy vs Rent</a>
+            <a href="investment.html">Investment Analysis</a>
+            <a href="rental-analysis.html">Short-Term Rental</a>
+        </div>
+    </nav>
+    <script>
+        document.getElementById('navToggle').addEventListener('click', function() {
+            var links = document.getElementById('navLinks');
+            var open = links.classList.toggle('open');
+            this.setAttribute('aria-expanded', open);
+        });
+    </script>
 
     <div class="container mx-auto p-4 md:p-8">
-        <!-- Navigation Bar -->
-        <nav class="bg-gray-800 rounded-lg mb-6 p-4">
-            <div class="flex flex-wrap gap-4 justify-center">
-                <a href="index.html" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition">Buy vs. Rent Calculator</a>
-                <a href="rental-analysis.html" class="bg-gray-700 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-600 transition">Short-Term Rental Analysis</a>
-            </div>
-        </nav>
 
         <header class="text-center mb-8">
             <h1 class="text-3xl md:text-4xl font-bold text-white">Interactive Buy vs. Rent Financial Simulator</h1>

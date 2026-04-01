@@ -1,0 +1,109 @@
+/* ===== Unified Site Navigation ===== */
+.site-nav {
+    background: #1f2937;
+    padding: 0 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.site-nav__brand {
+    color: #e5e7eb;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.site-nav__links {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.site-nav__links a {
+    color: #9ca3af;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 6px;
+    transition: background-color 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.site-nav__links a:hover {
+    background-color: #374151;
+    color: #e5e7eb;
+}
+
+.site-nav__links a.active {
+    background-color: #4f46e5;
+    color: #fff;
+}
+
+/* Hamburger button — hidden on desktop */
+.site-nav__toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 36px;
+    height: 36px;
+    padding: 6px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.site-nav__toggle:hover {
+    background: #374151;
+}
+
+.site-nav__toggle span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: #9ca3af;
+    border-radius: 2px;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+/* Mobile layout */
+@media (max-width: 640px) {
+    .site-nav {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 12px 20px;
+        gap: 12px;
+    }
+
+    .site-nav__toggle {
+        display: flex;
+    }
+
+    .site-nav__links {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        gap: 4px;
+        padding-bottom: 8px;
+    }
+
+    .site-nav__links.open {
+        display: flex;
+    }
+
+    .site-nav__links a {
+        width: 100%;
+        padding: 10px 14px;
+    }
+}
