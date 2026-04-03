@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rental Property Investment Analysis</title>
+    <link rel="stylesheet" href="nav.css">
     <style>
         * {
             margin: 0;
@@ -16,34 +17,6 @@
             background: #f5f5f5;
             padding: 20px;
             color: #333;
-        }
-
-        .nav-bar {
-            background: white;
-            padding: 15px 30px;
-            margin: -20px -20px 20px -20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
-
-        .nav-bar a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 6px;
-            transition: background-color 0.2s;
-        }
-
-        .nav-bar a:hover {
-            background-color: #f0f0f0;
-        }
-
-        .nav-bar a.active {
-            background-color: #667eea;
-            color: white;
         }
 
         .container {
@@ -394,11 +367,24 @@
     </style>
 </head>
 <body>
-    <div class="nav-bar">
-        <a href="index.html">Buy vs Rent Simulator</a>
-        <a href="investment.html" class="active">Investment Analysis</a>
-        <a href="market-dashboard.html">Market Briefing</a>
-    </div>
+    <nav class="site-nav">
+        <span class="site-nav__brand">FU Real Estate</span>
+        <button class="site-nav__toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="site-nav__links" id="navLinks">
+            <a href="index.html">Buy vs Rent</a>
+            <a href="investment.html" class="active">Investment Analysis</a>
+            <a href="rental-analysis.html">Short-Term Rental</a>
+        </div>
+    </nav>
+    <script>
+        document.getElementById('navToggle').addEventListener('click', function() {
+            var links = document.getElementById('navLinks');
+            var open = links.classList.toggle('open');
+            this.setAttribute('aria-expanded', open);
+        });
+    </script>
 
     <div class="container">
         <div class="header" id="header">
