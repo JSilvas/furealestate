@@ -168,6 +168,35 @@ Summary:`;
     }
 });
 
+app.post('/api/market-briefing', async (req, res) => {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+        return res.status(503).json({ error: 'Anthropic API key not configured. Set ANTHROPIC_API_KEY in environment.' });
+    }
+
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-beta': 'web-search-2025-03-05'
+            },
+            body: JSON.stringify(req.body)
+        });
+
+        const json = await response.json();
+        if (!response.ok) {
+            return res.status(response.status).json({ error: json.error || json });
+        }
+        return res.json(json);
+    } catch (err) {
+        console.error('Error forwarding to Anthropic:', err);
+        return res.status(500).json({ error: 'Server error while contacting Anthropic', details: err.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });
