@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rental Property Investment Analysis</title>
+    <title>Short-Term Rental Analysis</title>
+    <link rel="stylesheet" href="nav.css">
     <style>
         * {
             margin: 0;
@@ -42,39 +43,7 @@
         }
 
         :root {
-            --nav-height: 65px;
-        }
-
-        .nav-bar {
-            background: #444;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 1002;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 20px;
-        }
-
-        .nav-links a {
-            color: white;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            transition: background 0.2s;
-        }
-
-        .nav-links a:hover {
-            background: #555;
-        }
-
-        .nav-links a.active {
-            background: #667eea;
+            --nav-height: 56px;
         }
 
         .header {
@@ -272,12 +241,12 @@
             .inputs {
                 position: fixed;
                 left: 0;
-                top: var(--nav-height, 65px);
+                top: var(--nav-height, 56px);
                 bottom: 0;
                 margin-left: -350px;
-                max-height: calc(100vh - var(--nav-height, 65px));
+                max-height: calc(100vh - var(--nav-height, 56px));
                 box-shadow: 2px 0 8px rgba(0,0,0,0.15);
-                z-index: 1001;
+                z-index: 999;
             }
 
             .inputs:not(.collapsed) {
@@ -287,8 +256,8 @@
             .sidebar-toggle {
                 position: fixed;
                 left: 0;
-                top: var(--nav-height, 65px);
-                z-index: 1000;
+                top: var(--nav-height, 56px);
+                z-index: 998;
             }
 
             .inputs:not(.collapsed) ~ .sidebar-toggle {
@@ -529,14 +498,26 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <nav class="nav-bar">
-            <div class="nav-links">
-                <a href="index.html">Buy vs. Rent Calculator</a>
-                <a href="rental-analysis.html" class="active">Short-Term Rental Analysis</a>
-            </div>
-        </nav>
+    <nav class="site-nav">
+        <span class="site-nav__brand">FU Real Estate</span>
+        <button class="site-nav__toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="site-nav__links" id="navLinks">
+            <a href="index.html">Buy vs Rent</a>
+            <a href="investment.html">Investment Analysis</a>
+            <a href="rental-analysis.html" class="active">Short-Term Rental</a>
+        </div>
+    </nav>
+    <script>
+        document.getElementById('navToggle').addEventListener('click', function() {
+            var links = document.getElementById('navLinks');
+            var open = links.classList.toggle('open');
+            this.setAttribute('aria-expanded', open);
+        });
+    </script>
 
+    <div class="container">
         <div class="header" id="header">
             <div class="header-content">
                 <h1>Short-Term Rental Investment Analysis</h1>
@@ -753,7 +734,7 @@
 
         // Set nav height CSS variable so mobile sidebar starts below nav
         (function setNavHeight() {
-            const nav = document.querySelector('.nav-bar');
+            const nav = document.querySelector('.site-nav');
             if (nav) {
                 document.documentElement.style.setProperty('--nav-height', nav.offsetHeight + 'px');
             }

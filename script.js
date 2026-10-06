@@ -32,6 +32,7 @@
         reserve_total_display: document.getElementById('reserve_total_display'),
         reserve_minus_downpayment: document.getElementById('reserve_minus_downpayment'),
         reserve_minus_renovations: document.getElementById('reserve_minus_renovations'),
+        reserve_minus_closing: document.getElementById('reserve_minus_closing'),
         reserve_available_display: document.getElementById('reserve_available_display'),
         reserve_status_label: document.getElementById('reserve_status_label'),
         // calculated displays (may be undefined if element missing)
@@ -112,9 +113,12 @@
 
         const gross_monthly_income = values.household_income / 12;
         const housing_dti = gross_monthly_income > 0 ? (total_monthly_buyer_cost_year1 / gross_monthly_income) * 100 : 0;
+        // Standard lender front-end DTI: PITI only (excludes maintenance & utilities)
+        const piti_monthly = monthly_mortgage_payment + initial_monthly_tax + initial_monthly_insurance;
+        const lender_dti = gross_monthly_income > 0 ? (piti_monthly / gross_monthly_income) * 100 : 0;
 
         // Reserve cash calculations
-        let available_reserve = values.reserve_cash - down_payment - renovation_costs;
+        let available_reserve = values.reserve_cash - down_payment - renovation_costs - closing_costs;
         const target_monthly_expense = gross_monthly_income * (values.dti_percent / 100);
 
         // Calculate effective DTI with reserve contribution (for Year 1)
@@ -263,7 +267,8 @@
         // Leverage calculations for Year 1
         const appreciation_gain_y1 = values.home_price * (values.home_appreciation_rate_percent / 100);
         const total_equity_gain_y1 = appreciation_gain_y1 + year1_principal_paid;
-        const leveraged_roe = down_payment > 0 ? (total_equity_gain_y1 / down_payment) * 100 : 0;
+        const total_cash_invested = down_payment + closing_costs + renovation_costs;
+        const leveraged_roe = total_cash_invested > 0 ? (total_equity_gain_y1 / total_cash_invested) * 100 : 0;
         const real_leveraged_roe = leveraged_roe - values.inflation_rate_percent;
 
         return {
@@ -276,20 +281,22 @@
             },
             ratios: {
                 housing_dti: housing_dti,
-                effective_dti: effective_dti
+                effective_dti: effective_dti,
+                lender_dti: lender_dti
             },
             reserveAnalysis: {
                 starting_reserve: values.reserve_cash,
                 down_payment: down_payment,
                 renovation_costs: renovation_costs,
-                initial_available_reserve: values.reserve_cash - down_payment - renovation_costs,
+                closing_costs: closing_costs,
+                initial_available_reserve: values.reserve_cash - down_payment - renovation_costs - closing_costs,
                 final_available_reserve: available_reserve,
                 cumulative_reserve_used: cumulative_reserve_used,
                 reserve_depletion_month: reserve_depletion_month
             },
             rentalAnalysis: { average_annual_rental_cash_flow: average_annual_rental_cash_flow },
             leverageAnalysis: {
-                appreciation_gain_y1, year1_principal_paid, total_equity_gain_y1, down_payment, leveraged_roe, real_leveraged_roe
+                appreciation_gain_y1, year1_principal_paid, total_equity_gain_y1, down_payment, total_cash_invested, leveraged_roe, real_leveraged_roe
             }
         };
     }
@@ -735,12 +742,14 @@
 
         const downPaymentAmount = values.home_price * (values.down_payment_percent / 100);
         const renovationCosts = values.home_price * (values.renovation_percent / 100);
-        const availableReserve = values.reserve_cash - downPaymentAmount - renovationCosts;
+        const closingCosts = values.home_price * (values.closing_costs_percent / 100);
+        const availableReserve = values.reserve_cash - downPaymentAmount - renovationCosts - closingCosts;
 
         // Update display values
         safeSetText(elements.reserve_total_display, formatter.format(values.reserve_cash));
         safeSetText(elements.reserve_minus_downpayment, '-' + formatter.format(downPaymentAmount));
         safeSetText(elements.reserve_minus_renovations, '-' + formatter.format(renovationCosts));
+        safeSetText(elements.reserve_minus_closing, '-' + formatter.format(closingCosts));
         safeSetText(elements.reserve_available_display, formatter.format(availableReserve));
 
         // Determine status and apply color coding
@@ -810,6 +819,24 @@
         const renovationCosts = values.home_price * (values.renovation_percent / 100);
         safeSetText(elements.renovation_percent_calc, formatter.format(renovationCosts));
 
+        // PMI conditional: grey out input and show flag when down payment >= 20%
+        const pmiSlider = document.getElementById('pmi_rate_percent_slider');
+        const pmiNumber = document.getElementById('pmi_rate_percent_number');
+        const pmiNotRequired = values.down_payment_percent >= 20;
+        if (pmiSlider && pmiNumber) {
+            pmiSlider.disabled = pmiNotRequired;
+            pmiNumber.disabled = pmiNotRequired;
+            pmiSlider.style.opacity = pmiNotRequired ? '0.35' : '1';
+            pmiNumber.style.opacity = pmiNotRequired ? '0.35' : '1';
+        }
+        const pmiCalcEl = document.getElementById('pmi_rate_percent_calc');
+        if (pmiCalcEl) {
+            pmiCalcEl.textContent = pmiNotRequired
+                ? 'Not required (≥20% down)'
+                : `${values.pmi_rate_percent}%`;
+            pmiCalcEl.style.color = pmiNotRequired ? '#facc15' : '';
+        }
+
     }
 
     function updateMonthlyExpenseUI(values, monthlyCosts, ratios, rentalAnalysis, reserveAnalysis) {
@@ -832,7 +859,7 @@
                 <h3 class="font-bold text-lg text-purple-400">Key Financial Ratios</h3>
                 <p class="text-xs text-gray-400 mt-2">Effective Housing DTI</p>
                 <p class="text-3xl font-bold ${dtiColor}">${displayDTI.toFixed(1)}%</p>
-                 <p class="text-xs text-gray-500 mt-2">(Housing Costs / Gross Monthly Income)</p>
+                 <p class="text-xs text-gray-500 mt-2">(Includes maintenance. Standard lender DTI without maintenance: ~${ratios.lender_dti.toFixed(1)}%)</p>
                  ${reserveInfo}
             </div>
         `;
@@ -915,7 +942,7 @@
                         <p class="font-semibold text-indigo-300">Leveraged Return on Equity:</p>
                         <p class="text-3xl font-bold text-indigo-300" id="leverage-roe">${leverageAnalysis.leveraged_roe.toFixed(2)}%</p>
                     </div>
-                     <p class="text-xs text-gray-500 text-right">Based on a ${formatter.format(leverageAnalysis.down_payment)} down payment.</p>
+                     <p class="text-xs text-gray-500 text-right">Based on ${formatter.format(leverageAnalysis.total_cash_invested)} total cash invested (down payment + closing costs + renovations).</p>
                 </div>
                 <div class="relative h-72 md:h-80">
                     <canvas id="leverageChart"></canvas>

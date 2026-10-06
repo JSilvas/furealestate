@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Briefing — Foundational Tech Equity Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #0a0a0a; color: #c8bfa8; font-family: 'Space Mono', monospace; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #333; }
+
+        .scanline {
+            position: fixed; inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px);
+            pointer-events: none; z-index: 1;
+        }
+
+        .container {
+            max-width: 1140px; margin: 0 auto;
+            padding: 0 24px 40px; position: relative; z-index: 2;
+        }
+
+        /* Site nav */
+        .site-nav {
+            border-bottom: 1px solid #141414;
+            padding: 12px 0;
+            margin-bottom: 0;
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .site-nav a {
+            color: #444;
+            text-decoration: none;
+            font-size: 9px;
+            letter-spacing: 0.15em;
+            padding: 6px 12px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+        .site-nav a:hover { color: #888; border-color: #1e1e1e; }
+        .site-nav a.active { color: #e8d5a3; border-color: #e8d5a330; }
+
+        /* Header */
+        .header {
+            border-bottom: 1px solid #1a1a1a;
+            padding: 32px 0 24px;
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .header-title-eyebrow {
+            font-size: 10px; letter-spacing: 0.2em; color: #444; margin-bottom: 6px;
+        }
+        .header-title {
+            font-family: 'Instrument Serif', serif;
+            font-size: clamp(26px, 5vw, 40px);
+            color: #e8d5a3; font-weight: 400; line-height: 1.1; font-style: italic;
+        }
+        .header-timestamp {
+            font-size: 10px; color: #333; margin-top: 6px; letter-spacing: 0.12em;
+        }
+
+        .refresh-btn {
+            background: transparent; border: 1px solid #222;
+            color: #444; padding: 9px 18px; cursor: pointer;
+            font-family: 'Space Mono', monospace; font-size: 10px;
+            letter-spacing: 0.15em; transition: all 0.15s;
+        }
+        .refresh-btn:hover {
+            background: #e8d5a315; border-color: #e8d5a340; color: #e8d5a3;
+        }
+
+        /* Loading */
+        .loading-wrap { text-align: center; padding: 80px 20px; }
+        .spinner {
+            width: 44px; height: 44px;
+            border: 1px solid #e8d5a320;
+            border-top: 1px solid #e8d5a370;
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+            margin: 0 auto 28px;
+        }
+        .loading-phase {
+            color: #e8d5a3; font-size: 11px; letter-spacing: 0.2em;
+            animation: pulse 2s infinite; margin-bottom: 8px;
+        }
+        .loading-subtitle {
+            color: #2a2a2a; font-size: 10px; letter-spacing: 0.1em; margin-bottom: 32px;
+        }
+        .loading-tickers {
+            display: flex; gap: 6px; justify-content: center;
+            flex-wrap: wrap; max-width: 500px; margin: 0 auto;
+        }
+        .loading-ticker {
+            padding: 3px 10px; border: 1px solid #1a1a1a;
+            color: #252525; font-size: 10px;
+            animation: pulse 2s infinite;
+        }
+        .loading-ticker-disc {
+            padding: 3px 10px; border: 1px dashed #1a1a1a;
+            color: #1a1a1a; font-size: 10px;
+        }
+
+        /* Error */
+        .error-wrap {
+            border: 1px solid #ff444430; background: #ff44440a;
+            padding: 24px; text-align: center;
+        }
+        .error-title { color: #ff4444; font-size: 12px; margin-bottom: 8px; letter-spacing: 0.1em; }
+        .error-msg { color: #555; font-size: 11px; }
+
+        /* Content panels */
+        .macro-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 16px; margin-bottom: 20px;
+        }
+        @media (max-width: 640px) { .macro-grid { grid-template-columns: 1fr; } }
+        .panel {
+            border: 1px solid #1a1a1a; padding: 16px 20px;
+        }
+        .panel-label {
+            font-size: 9px; letter-spacing: 0.2em; color: #333; margin-bottom: 8px;
+        }
+        .panel-text {
+            font-size: 12px; line-height: 1.75; color: #8a8070;
+        }
+
+        .sentiment-row {
+            display: flex; gap: 16px; align-items: center; margin-bottom: 20px;
+        }
+        .sentiment-label { font-size: 9px; color: #333; letter-spacing: 0.2em; }
+
+        /* Key risks */
+        .risks-panel { border: 1px solid #1a1a1a; padding: 14px 20px; margin-bottom: 24px; }
+        .risks-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+        .risk-tag {
+            padding: 4px 12px; border: 1px solid #222;
+            font-size: 10px; color: #5a5040;
+        }
+
+        /* Rotating themes */
+        .themes-wrap { margin-bottom: 28px; }
+        .themes-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+        .theme-tag {
+            padding: 5px 14px; border: 1px solid #e8d5a325;
+            background: #e8d5a308; font-size: 11px; color: #c8b080;
+            letter-spacing: 0.04em;
+        }
+
+        /* Watchlist label */
+        .section-label {
+            font-size: 9px; letter-spacing: 0.2em; color: #333; margin-bottom: 12px;
+        }
+
+        /* Stock table */
+        .stock-table { border: 1px solid #1a1a1a; }
+        .stock-table-header {
+            display: grid;
+            grid-template-columns: 90px 90px 72px 72px 110px 50px 1fr 100px;
+            padding: 8px 16px; border-bottom: 1px solid #1a1a1a;
+            font-size: 9px; color: #333; letter-spacing: 0.15em;
+        }
+        .stock-row {
+            display: grid;
+            grid-template-columns: 90px 90px 72px 72px 110px 50px 1fr 100px;
+            padding: 14px 16px;
+            align-items: start;
+            transition: background 0.15s; cursor: default;
+        }
+        .stock-row:hover { background: #141414; }
+
+        /* Discovery card */
+        .discovery-card {
+            border: 1px solid #1e1e1e; background: #0d0d0d;
+            padding: 16px 20px;
+            transition: background 0.15s; cursor: default;
+        }
+        .discovery-card:hover { background: #111; }
+        .discovery-inner {
+            display: flex; align-items: flex-start;
+            gap: 20px; flex-wrap: wrap;
+        }
+
+        /* Footer */
+        .page-footer {
+            margin-top: 40px; padding-top: 20px; border-top: 1px solid #111;
+            display: flex; justify-content: space-between;
+            flex-wrap: wrap; gap: 8px;
+        }
+        .footer-note { font-size: 9px; color: #222; letter-spacing: 0.12em; }
+
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        .fade-in { animation: fadeIn 0.6s ease forwards; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="scanline"></div>
+
+    <div class="container">
+        <!-- Site nav -->
+        <nav class="site-nav">
+            <a href="index.html">BUY VS RENT</a>
+            <a href="investment.html">INVESTMENT ANALYSIS</a>
+            <a href="rental-analysis.html">SHORT-TERM RENTAL</a>
+            <a href="market-dashboard.html" class="active">MARKET BRIEFING</a>
+        </nav>
+
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <div class="header-title-eyebrow">FOUNDATIONAL TECH · EQUITY INTELLIGENCE · LIVE SCAN</div>
+                <h1 class="header-title">Market Briefing</h1>
+                <div class="header-timestamp" id="header-timestamp">LIVE ANALYSIS IN PROGRESS</div>
+            </div>
+            <button class="refresh-btn" onclick="window.location.reload()">↻ NEW SCAN</button>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading-wrap" id="loading">
+            <div class="spinner"></div>
+            <div class="loading-phase" id="loading-phase">Initializing market scan...</div>
+            <div class="loading-subtitle">Claude is running live web searches · 20–45 seconds</div>
+            <div class="loading-tickers" id="loading-tickers"></div>
+        </div>
+
+        <!-- Error -->
+        <div class="error-wrap hidden" id="error">
+            <div class="error-title">ANALYSIS FAILED</div>
+            <div class="error-msg" id="error-msg"></div>
+        </div>
+
+        <!-- Main content -->
+        <div class="hidden fade-in" id="content"></div>
+    </div>
+
+    <script>
+    const CORE_STOCKS = [
+        { ticker: 'TSM',   sector: 'Foundry' },
+        { ticker: 'AVGO',  sector: 'Custom Silicon' },
+        { ticker: 'NVDA',  sector: 'GPU/AI' },
+        { ticker: 'INTC',  sector: 'Legacy CPU' },
+        { ticker: 'AMD',   sector: 'CPU/GPU' },
+        { ticker: 'ASML',  sector: 'Lithography' },
+        { ticker: 'AAPL',  sector: 'Consumer Tech' },
+        { ticker: 'MSFT',  sector: 'Cloud/AI' },
+        { ticker: 'GOOGL', sector: 'Cloud/AI' },
+        { ticker: 'META',  sector: 'AI Infrastructure' },
+    ];
+
+    const CORE_MAP = Object.fromEntries(CORE_STOCKS.map(s => [s.ticker, s.sector]));
+
+    const SYSTEM_PROMPT = `You are a senior technology equity analyst with deep expertise in semiconductors, AI infrastructure, and global supply chains. You have access to web search and MUST use it extensively to get current data before responding.
+
+Your task: Produce a fresh market intelligence briefing.
+
+PART 1 — Core watchlist (always include all 10): TSM, AVGO, NVDA, INTC, AMD, ASML, AAPL, MSFT, GOOGL, META.
+
+PART 2 — Dynamic Discoveries (3-5 stocks NOT in the core list): Search right now for:
+- Tech/semiconductor stocks with unusual volume, momentum, or analyst upgrades TODAY
+- Emerging plays in: AI power/energy infrastructure, edge AI, defense tech, robotics, cooling/thermal, optical interconnects, or sovereign AI builds
+- Supply chain adjacencies to the core watchlist that are moving
+- Any mid-to-large cap with a significant catalyst in the past 7 days
+These must be genuinely fresh finds — not just the same names repackaged. A sophisticated investor should find these non-obvious.
+
+Also search for:
+- Current macro: Fed signals, tariff/trade policy, credit conditions
+- Geopolitical: Taiwan strait, US-China export controls, semiconductor nationalism
+- Rotating sector themes: what capital is flowing INTO right now
+
+Return ONLY valid JSON (no markdown fences, no preamble) with this structure:
+{
+  "timestamp": "ISO string",
+  "macro_summary": "2-3 sentence macro backdrop with specific data points",
+  "geopolitical_summary": "2-3 sentence geopolitical risk with specific developments",
+  "market_sentiment": "RISK_ON | RISK_OFF | NEUTRAL",
+  "overall_recommendation": "BUY_DIP | HOLD | REDUCE | AVOID",
+  "recommendation_thesis": "3-4 sentence thesis with supporting evidence",
+  "entry_strategy": "1-2 sentence tactical entry guidance",
+  "key_risks": ["risk 1", "risk 2", "risk 3"],
+  "rotating_themes": ["theme 1", "theme 2", "theme 3"],
+  "stocks": [
+    {
+      "ticker": "TSM",
+      "name": "Taiwan Semiconductor",
+      "price": "$329.24",
+      "change_1d": "-2.82%",
+      "change_1m": "-11.15%",
+      "signal": "BUY | ACCUMULATE | HOLD | REDUCE | AVOID",
+      "signal_strength": 4,
+      "thesis": "2 sentence thesis",
+      "catalyst": "Key catalyst or risk",
+      "conviction": "HIGH | MEDIUM | LOW"
+    }
+  ],
+  "discoveries": [
+    {
+      "ticker": "XXXX",
+      "name": "Full Company Name",
+      "price": "$00.00",
+      "change_1d": "+/-X.XX%",
+      "change_1m": "+/-X.XX%",
+      "signal": "BUY | ACCUMULATE | HOLD | REDUCE | AVOID",
+      "signal_strength": 3,
+      "why_now": "Specific reason this surfaced TODAY — what event, data, or move triggered inclusion",
+      "thesis": "2 sentence investment thesis",
+      "catalyst": "Near-term catalyst",
+      "conviction": "HIGH | MEDIUM | LOW",
+      "category": "e.g. Power Infrastructure | Defense AI | Edge Computing | Supply Chain | Sector Rotation"
+    }
+  ]
+}`;
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function esc(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function signalBadge(signal) {
+        const colors = {
+            BUY:        { bg: '#00ff9520', border: '#00ff95', text: '#00ff95' },
+            ACCUMULATE: { bg: '#7fff0020', border: '#7fff00', text: '#7fff00' },
+            HOLD:       { bg: '#ffd70020', border: '#ffd700', text: '#ffd700' },
+            REDUCE:     { bg: '#ff6b0020', border: '#ff6b00', text: '#ff6b00' },
+            AVOID:      { bg: '#ff000020', border: '#ff4444', text: '#ff4444' },
+        };
+        const c = colors[signal] || colors.HOLD;
+        return `<span style="background:${c.bg};border:1px solid ${c.border};color:${c.text};padding:2px 10px;border-radius:3px;font-size:11px;font-family:'Space Mono',monospace;font-weight:700;letter-spacing:0.08em;white-space:nowrap">${esc(signal)}</span>`;
+    }
+
+    function convictionDots(conviction) {
+        const count = { HIGH: 3, MEDIUM: 2, LOW: 1 }[conviction] || 1;
+        let dots = '';
+        for (let i = 1; i <= 3; i++) {
+            dots += `<span style="width:6px;height:6px;border-radius:50%;background:${i <= count ? '#e8d5a3' : '#252525'};display:inline-block"></span>`;
+        }
+        return `<span style="display:flex;gap:3px;align-items:center">${dots}</span>`;
+    }
+
+    function strengthBar(value) {
+        let bars = '';
+        for (let i = 1; i <= 5; i++) {
+            bars += `<div style="width:8px;height:12px;background:${i <= value ? '#e8d5a3' : '#1a1a1a'};border:1px solid #2a2a2a"></div>`;
+        }
+        return `<div style="display:flex;gap:2px">${bars}</div>`;
+    }
+
+    function sentimentIndicator(sentiment) {
+        const map = {
+            RISK_ON:  { label: 'RISK ON',  color: '#00ff95', icon: '▲' },
+            NEUTRAL:  { label: 'NEUTRAL',  color: '#ffd700', icon: '◆' },
+            RISK_OFF: { label: 'RISK OFF', color: '#ff4444', icon: '▼' },
+        };
+        const s = map[sentiment] || map.NEUTRAL;
+        return `<span style="color:${s.color};font-family:'Space Mono',monospace;font-size:13px;font-weight:700">${s.icon} ${s.label}</span>`;
+    }
+
+    function recoCard(recommendation, thesis, entry) {
+        const map = {
+            BUY_DIP: { label: 'BUY THE DIP',      color: '#00ff95', bg: '#00ff9510' },
+            HOLD:    { label: 'HOLD',              color: '#ffd700', bg: '#ffd70010' },
+            REDUCE:  { label: 'REDUCE EXPOSURE',   color: '#ff6b00', bg: '#ff6b0010' },
+            AVOID:   { label: 'AVOID',             color: '#ff4444', bg: '#ff444410' },
+        };
+        const r = map[recommendation] || map.HOLD;
+        const entryHtml = entry
+            ? `<p style="color:#e8d5a3;font-size:12px;font-family:'Space Mono',monospace;margin:0;opacity:0.7">ENTRY: ${esc(entry)}</p>`
+            : '';
+        return `
+        <div style="border:1px solid ${r.color}40;background:${r.bg};padding:20px 24px;margin-bottom:24px">
+            <div style="color:${r.color};font-family:'Space Mono',monospace;font-size:16px;font-weight:700;letter-spacing:0.1em;margin-bottom:12px">▸ ${r.label}</div>
+            <p style="color:#c8bfa8;font-size:13px;line-height:1.75;margin:0 0 10px 0">${esc(thesis)}</p>
+            ${entryHtml}
+        </div>`;
+    }
+
+    function stockTableRow(stock, isLast) {
+        const neg1d = (stock.change_1d || '').startsWith('-');
+        const neg1m = (stock.change_1m || '').startsWith('-');
+        const sector = CORE_MAP[stock.ticker] || '';
+        const borderBottom = isLast ? 'none' : '1px solid #111';
+        const catalystHtml = stock.catalyst
+            ? `<p style="font-size:10px;color:#444;line-height:1.5;margin:4px 0 0">▸ ${esc(stock.catalyst)}</p>`
+            : '';
+        return `
+        <div class="stock-row" style="border-bottom:${borderBottom}">
+            <div>
+                <div style="color:#e8d5a3;font-weight:700;font-size:13px">${esc(stock.ticker)}</div>
+                <div style="color:#2e2e2e;font-size:9px;margin-top:2px">${esc(sector)}</div>
+            </div>
+            <div style="color:#c8bfa8;font-size:12px">${esc(stock.price)}</div>
+            <div style="color:${neg1d ? '#ff6b6b' : '#6bffb8'};font-size:12px">${esc(stock.change_1d)}</div>
+            <div style="color:${neg1m ? '#ff6b6b' : '#6bffb8'};font-size:12px">${esc(stock.change_1m)}</div>
+            <div>${signalBadge(stock.signal)}</div>
+            <div style="padding-top:2px">${strengthBar(stock.signal_strength)}</div>
+            <div>
+                <p style="font-size:11px;color:#7a7060;line-height:1.6;margin:0">${esc(stock.thesis)}</p>
+                ${catalystHtml}
+            </div>
+            <div style="display:flex;justify-content:flex-end;padding-top:2px">${convictionDots(stock.conviction)}</div>
+        </div>`;
+    }
+
+    function stockTable(stocks) {
+        const rows = (stocks || []).map((s, i) => stockTableRow(s, i === stocks.length - 1)).join('');
+        return `
+        <div class="stock-table">
+            <div class="stock-table-header">
+                <span>TICKER</span><span>PRICE</span><span>1D</span><span>1M</span>
+                <span>SIGNAL</span><span>STR</span><span>THESIS</span>
+                <span style="text-align:right">CONV</span>
+            </div>
+            ${rows}
+        </div>`;
+    }
+
+    function discoveryCard(d) {
+        const neg1d = (d.change_1d || '').startsWith('-');
+        const neg1m = (d.change_1m || '').startsWith('-');
+        const categoryHtml = d.category
+            ? `<div style="margin-top:6px;padding:2px 8px;border:1px solid #e8d5a320;color:#e8d5a380;font-size:9px;letter-spacing:0.1em;display:inline-block">${esc(d.category)}</div>`
+            : '';
+        const whyNowHtml = d.why_now
+            ? `<div style="background:#e8d5a308;border:1px solid #e8d5a315;padding:8px 12px;margin-bottom:8px">
+                   <span style="font-size:9px;color:#e8d5a370;letter-spacing:0.15em">WHY NOW: </span>
+                   <span style="font-size:11px;color:#a09080;line-height:1.6">${esc(d.why_now)}</span>
+               </div>`
+            : '';
+        const catalystHtml = d.catalyst
+            ? `<p style="font-size:10px;color:#3a3a3a;margin:4px 0 0">▸ ${esc(d.catalyst)}</p>`
+            : '';
+        return `
+        <div class="discovery-card">
+            <div class="discovery-inner">
+                <div style="min-width:120px">
+                    <div style="color:#e8d5a3;font-weight:700;font-size:15px;font-family:'Space Mono',monospace">${esc(d.ticker)}</div>
+                    <div style="color:#555;font-size:10px;margin-top:2px">${esc(d.name)}</div>
+                    ${categoryHtml}
+                </div>
+                <div style="min-width:160px">
+                    <div style="color:#c8bfa8;font-size:13px;margin-bottom:4px">${esc(d.price)}</div>
+                    <div style="display:flex;gap:12px">
+                        <span style="font-size:11px;color:${neg1d ? '#ff6b6b' : '#6bffb8'}">1D ${esc(d.change_1d)}</span>
+                        <span style="font-size:11px;color:${neg1m ? '#ff6b6b' : '#6bffb8'}">1M ${esc(d.change_1m)}</span>
+                    </div>
+                    <div style="margin-top:8px;display:flex;align-items:center;gap:10px">
+                        ${signalBadge(d.signal)}
+                        ${strengthBar(d.signal_strength)}
+                    </div>
+                </div>
+                <div style="flex:1;min-width:240px">
+                    ${whyNowHtml}
+                    <p style="font-size:11px;color:#6a6050;line-height:1.6;margin:0">${esc(d.thesis)}</p>
+                    ${catalystHtml}
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                    <div style="font-size:9px;color:#333;letter-spacing:0.1em">CONVICTION</div>
+                    ${convictionDots(d.conviction)}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function renderContent(data) {
+        const keyRisksHtml = (data.key_risks || []).length
+            ? `<div class="risks-panel">
+                   <div class="panel-label">KEY RISKS</div>
+                   <div class="risks-tags">${data.key_risks.map(r => `<span class="risk-tag">⚠ ${esc(r)}</span>`).join('')}</div>
+               </div>`
+            : '';
+
+        const themesHtml = (data.rotating_themes || []).length
+            ? `<div class="themes-wrap">
+                   <div class="section-label">CAPITAL ROTATING INTO</div>
+                   <div class="themes-tags">${data.rotating_themes.map(t => `<span class="theme-tag">↗ ${esc(t)}</span>`).join('')}</div>
+               </div>`
+            : '';
+
+        const discoveriesHtml = (data.discoveries || []).length
+            ? `<div style="margin-top:40px">
+                   <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">
+                       <div style="font-size:9px;letter-spacing:0.2em;color:#e8d5a3">◈ EMERGING DISCOVERIES</div>
+                       <div style="font-size:9px;color:#333;letter-spacing:0.1em">DYNAMICALLY IDENTIFIED THIS SESSION — ${data.discoveries.length} SURFACED</div>
+                   </div>
+                   <div style="font-size:10px;color:#3a3a3a;margin-bottom:16px;letter-spacing:0.05em">Non-core equities with current catalysts. Conviction is intentionally lower — treat as research leads.</div>
+                   <div style="display:flex;flex-direction:column;gap:12px">${data.discoveries.map(discoveryCard).join('')}</div>
+               </div>`
+            : '';
+
+        return `
+        <div class="macro-grid">
+            <div class="panel">
+                <div class="panel-label">MACRO BACKDROP</div>
+                <p class="panel-text">${esc(data.macro_summary)}</p>
+            </div>
+            <div class="panel">
+                <div class="panel-label">GEOPOLITICAL RISK</div>
+                <p class="panel-text">${esc(data.geopolitical_summary)}</p>
+            </div>
+        </div>
+
+        <div class="sentiment-row">
+            <div class="sentiment-label">MARKET SENTIMENT:</div>
+            ${sentimentIndicator(data.market_sentiment)}
+        </div>
+
+        ${recoCard(data.overall_recommendation, data.recommendation_thesis, data.entry_strategy)}
+
+        ${keyRisksHtml}
+        ${themesHtml}
+
+        <div class="section-label">CORE WATCHLIST — ${(data.stocks || []).length} EQUITIES</div>
+        ${stockTable(data.stocks)}
+
+        ${discoveriesHtml}
+
+        <div class="page-footer">
+            <span class="footer-note">FOR INFORMATIONAL PURPOSES ONLY · NOT FINANCIAL ADVICE</span>
+            <span class="footer-note">POWERED BY CLAUDE + WEB SEARCH · NEW DATA EACH SESSION</span>
+        </div>`;
+    }
+
+    // ── Loading phases ────────────────────────────────────────────────────────
+
+    const PHASES = [
+        'Scanning live market data...',
+        'Analyzing macro environment...',
+        'Assessing geopolitical risks...',
+        'Evaluating semiconductor sector...',
+        'Hunting emerging opportunities...',
+        'Synthesizing AI infrastructure outlook...',
+        'Building dynamic discovery list...',
+        'Generating recommendations...',
+    ];
+
+    (function buildLoadingTickers() {
+        const wrap = document.getElementById('loading-tickers');
+        CORE_STOCKS.forEach((s, i) => {
+            const el = document.createElement('div');
+            el.className = 'loading-ticker';
+            el.textContent = s.ticker;
+            el.style.animationDelay = `${i * 0.2}s`;
+            wrap.appendChild(el);
+        });
+        const disc = document.createElement('div');
+        disc.className = 'loading-ticker-disc';
+        disc.textContent = '+ DISCOVERIES';
+        wrap.appendChild(disc);
+    })();
+
+    let phaseIndex = 0;
+    const phaseEl = document.getElementById('loading-phase');
+    const phaseInterval = setInterval(() => {
+        phaseIndex = (phaseIndex + 1) % PHASES.length;
+        phaseEl.textContent = PHASES[phaseIndex];
+    }, 2800);
+
+    // ── Fetch ─────────────────────────────────────────────────────────────────
+
+    (async function fetchAnalysis() {
+        const today = new Date().toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+
+        try {
+            const response = await fetch('/api/market-briefing', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-6',
+                    max_tokens: 5000,
+                    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+                    system: SYSTEM_PROMPT,
+                    messages: [{
+                        role: 'user',
+                        content: `Today is ${today}. Run comprehensive web searches now. You must: (1) search current prices for all core stocks, (2) search for macro and geopolitical news from the past week, (3) actively hunt for 3-5 non-obvious emerging opportunities with current catalysts. Be specific with numbers. Return complete JSON.`
+                    }]
+                })
+            });
+
+            clearInterval(phaseInterval);
+
+            const raw = await response.json();
+
+            if (!response.ok) {
+                throw new Error(raw.error || `API error ${response.status}`);
+            }
+
+            const textBlock = (raw.content || []).find(b => b.type === 'text');
+            if (!textBlock) throw new Error('No text response from API');
+
+            let jsonStr = textBlock.text.trim()
+                .replace(/```json\n?/g, '')
+                .replace(/```\n?/g, '')
+                .trim();
+
+            const start = jsonStr.indexOf('{');
+            const end   = jsonStr.lastIndexOf('}');
+            if (start === -1 || end === -1) throw new Error('No JSON found in response');
+
+            const data = JSON.parse(jsonStr.slice(start, end + 1));
+
+            // Update header timestamp
+            try {
+                document.getElementById('header-timestamp').textContent =
+                    'UPDATED ' + new Date(data.timestamp).toLocaleString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+                    });
+            } catch (_) {}
+
+            document.getElementById('loading').classList.add('hidden');
+            const contentEl = document.getElementById('content');
+            contentEl.innerHTML = renderContent(data);
+            contentEl.classList.remove('hidden');
+
+        } catch (err) {
+            clearInterval(phaseInterval);
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error-msg').textContent = err.message;
+            document.getElementById('error').classList.remove('hidden');
+        }
+    })();
+    </script>
+</body>
+</html>
